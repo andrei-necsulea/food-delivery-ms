@@ -44,3 +44,11 @@ git push -u origin main
 
 git config --global user.email "you@example.com"
 git config --global user.name "Your Name"
+
+git checkout main
+git pull origin main
+git checkout -b feature/nume-task
+... modifici ...
+git add .
+git commit -m "Mesaj"
+git push origin feature/nume-task
