@@ -1,0 +1,46 @@
+
+python3 -m venv .venv (macOS/linux)
+python -m venv .venv. (windows)
+
+source .venv/bin/activate (macOS/linux)
+.venv\Scripts\activate (windows)
+
+pip install -r requirements.txt
+
+django-admin startproject fooddelivery .
+
+python manage.py startapp accounts
+python manage.py startapp restaurants
+python manage.py startapp menu
+python manage.py startapp orders
+python manage.py startapp delivery
+python manage.py startapp payments
+python manage.py startapp reports
+python manage.py startapp notifications
+
+python manage.py runserver
+
+python manage.py migrate (pentru migratii)
+
+Pentru golire continut terminal : clear
+
+
+Comenzi git:
+
+git init
+
+creem .gitignore
+
+git add .
+
+creem repo pe GitHub
+
+git remote add origin https://github.com/USERNAME/food-delivery-ms.git
+
+git commit -m "Project created”
+
+git branch -M main
+git push -u origin main
+
+git config --global user.email "you@example.com"
+git config --global user.name "Your Name"
