@@ -83,8 +83,12 @@ WSGI_APPLICATION = 'fooddelivery.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'food_delivery',
+        'USER': 'food_user',
+        'PASSWORD': 'food_pass',
+        'HOST': 'localhost',
+        'PORT': '5432',
     }
 }
 
