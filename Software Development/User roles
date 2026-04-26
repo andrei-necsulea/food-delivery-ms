@@ -1,0 +1,60 @@
+1. Guest
+Poate:
+vedea home page
+vedea restaurantele
+vedea meniurile
+merge la login/register
+
+Nu poate:
+crea comenzi
+edita restaurante
+edita meniu
+vedea panouri interne
+
+
+2. Admin
+Poate:
+gestiona tot
+vedea toate comenzile
+gestiona users
+gestiona restaurante
+gestiona livrări
+
+
+3. Restaurant Manager
+Poate:
+gestiona doar restaurantul lui
+adăuga/edita produse din meniul restaurantului lui
+vedea comenzile restaurantului lui
+schimba statusul comenzilor pentru restaurantul lui
+
+Nu poate:
+modifica alte restaurante
+modifica users global
+modifica tot sistemul
+
+
+4. Client
+Poate:
+vedea restaurante și meniuri
+crea comenzi
+vedea comenzile lui
+urmări statusul comenzilor lui
+
+Nu poate:
+modifica restaurante
+modifica meniuri
+vedea comenzile altora
+
+
+5. Delivery Driver
+Poate:
+vedea livrările atribuite lui
+accepta livrare
+actualiza statusul livrării
+marca drept livrat
+
+Nu poate:
+edita restaurante
+edita meniuri
+vedea toate comenzile

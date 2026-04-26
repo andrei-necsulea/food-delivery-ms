@@ -1,0 +1,58 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if item %}Edit Menu Item{% else %}Create Menu Item{% endif %}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card content-card">
+            <div class="card-body p-4">
+                <h1 class="h3 fw-bold mb-4">
+                    {% if item %}Edit Menu Item{% else %}Create Menu Item{% endif %}
+                </h1>
+
+                <form method="post">
+                    {% csrf_token %}
+
+                    <div class="mb-3">
+                        <label class="form-label">Restaurant</label>
+                        <select name="restaurant_id" class="form-select" required>
+                            {% for restaurant in restaurants %}
+                                <option value="{{ restaurant.id }}"
+                                    {% if item and item.restaurant_id == restaurant.id %}selected{% endif %}>
+                                    {{ restaurant.name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Item Name</label>
+                        <input type="text" name="name" class="form-control" value="{{ item.name|default:'' }}" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Description</label>
+                        <textarea name="description" class="form-control" rows="3">{{ item.description|default:'' }}</textarea>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Image URL</label>
+                        <input type="url" name="image_url" class="form-control" value="{{ item.image_url|default:'' }}" placeholder="https://...">
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label">Price</label>
+                        <input type="number" step="0.01" name="price" class="form-control" value="{{ item.price|default:'' }}" required>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">Save</button>
+                        <a href="{% url 'menu_list' %}" class="btn btn-outline-secondary">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,256 @@
+{% extends 'base.html' %}
+
+{% block title %}Home - Food Delivery{% endblock %}
+
+{% block content %}
+<div class="hero-box mb-5">
+    <h1 class="display-5 fw-bold">Food Delivery Management System</h1>
+
+    {% if user.is_authenticated %}
+        <p class="lead mt-3">
+            Welcome, {{ user.username }}. You are logged in as <strong>{{ user.role }}</strong>.
+        </p>
+    {% else %}
+        <p class="lead mt-3">
+            Welcome, guest. Search restaurants or dishes and discover what you want to order.
+        </p>
+    {% endif %}
+
+    <form method="get" action="{% url 'restaurant_list' %}" class="mt-4">
+        <div class="row g-2">
+            <div class="col-md-10">
+                <input
+                    type="text"
+                    name="q"
+                    class="form-control form-control-lg"
+                    placeholder="Search restaurants or dishes..."
+                >
+            </div>
+            <div class="col-md-2 d-grid">
+                <button type="submit" class="btn btn-light btn-lg">Search</button>
+            </div>
+        </div>
+    </form>
+</div>
+
+{% if not user.is_authenticated %}
+    <div class="row g-4">
+        <div class="col-md-6">
+            <div class="card content-card h-100">
+                <div class="card-body">
+                    <h3 class="h5 fw-bold">Restaurants</h3>
+                    <p class="text-muted">Browse available restaurants.</p>
+                    <a href="{% url 'restaurant_list' %}" class="btn btn-primary">Open Restaurants</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card content-card h-100">
+                <div class="card-body">
+                    <h3 class="h5 fw-bold">Menu</h3>
+                    <p class="text-muted">Explore available dishes and prices.</p>
+                    <a href="{% url 'menu_list' %}" class="btn btn-primary">Open Menu</a>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endif %}
+
+{% if user.is_authenticated and user.role == 'admin' %}
+    <div class="row g-4 mb-4">
+        <div class="col-md-3">
+            <div class="card content-card text-center h-100">
+                <div class="card-body">
+                    <h2 class="fw-bold">{{ total_restaurants }}</h2>
+                    <p class="text-muted mb-0">Restaurants</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card content-card text-center h-100">
+                <div class="card-body">
+                    <h2 class="fw-bold">{{ total_menu_items }}</h2>
+                    <p class="text-muted mb-0">Menu Items</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card content-card text-center h-100">
+                <div class="card-body">
+                    <h2 class="fw-bold">{{ total_orders }}</h2>
+                    <p class="text-muted mb-0">Orders</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card content-card text-center h-100">
+                <div class="card-body">
+                    <h2 class="fw-bold">{{ total_deliveries }}</h2>
+                    <p class="text-muted mb-0">Deliveries</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-md-6">
+            <div class="card content-card h-100">
+                <div class="card-body">
+                    <h3 class="h5 fw-bold">Order Overview</h3>
+                    <p class="mb-2">Created orders: <strong>{{ created_orders }}</strong></p>
+                    <p class="mb-0">Delivered orders: <strong>{{ delivered_orders }}</strong></p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card content-card h-100">
+                <div class="card-body">
+                    <h3 class="h5 fw-bold">Quick Actions</h3>
+                    <div class="d-flex flex-wrap gap-2 mt-3">
+                        <a href="{% url 'restaurant_list' %}" class="btn btn-primary">Restaurants</a>
+                        <a href="{% url 'menu_list' %}" class="btn btn-primary">Menu</a>
+                        <a href="{% url 'order_list' %}" class="btn btn-primary">Orders</a>
+                        <a href="{% url 'delivery_list' %}" class="btn btn-primary">Deliveries</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endif %}
+
+{% if user.is_authenticated and user.role == 'manager' %}
+    <div class="row g-4 mb-4">
+        <div class="col-md-3">
+            <div class="card content-card text-center h-100">
+                <div class="card-body">
+                    <h2 class="fw-bold">{{ my_restaurants_count }}</h2>
+                    <p class="text-muted mb-0">My Restaurants</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card content-card text-center h-100">
+                <div class="card-body">
+                    <h2 class="fw-bold">{{ my_menu_items_count }}</h2>
+                    <p class="text-muted mb-0">My Menu Items</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card content-card text-center h-100">
+                <div class="card-body">
+                    <h2 class="fw-bold">{{ my_orders_count }}</h2>
+                    <p class="text-muted mb-0">My Orders</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card content-card text-center h-100">
+                <div class="card-body">
+                    <h2 class="fw-bold">{{ my_active_orders_count }}</h2>
+                    <p class="text-muted mb-0">Active Orders</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card content-card">
+        <div class="card-body">
+            <h3 class="h5 fw-bold">Quick Actions</h3>
+            <div class="d-flex flex-wrap gap-2 mt-3">
+                <a href="{% url 'restaurant_list' %}" class="btn btn-primary">My Restaurant</a>
+                <a href="{% url 'menu_list' %}" class="btn btn-primary">My Menu</a>
+                <a href="{% url 'order_list' %}" class="btn btn-primary">Restaurant Orders</a>
+            </div>
+        </div>
+    </div>
+{% endif %}
+
+{% if user.is_authenticated and user.role == 'client' %}
+    <div class="row g-4 mb-4">
+        <div class="col-md-3">
+            <div class="card content-card text-center h-100">
+                <div class="card-body">
+                    <h2 class="fw-bold">{{ my_orders_count }}</h2>
+                    <p class="text-muted mb-0">My Orders</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card content-card text-center h-100">
+                <div class="card-body">
+                    <h2 class="fw-bold">{{ my_active_orders_count }}</h2>
+                    <p class="text-muted mb-0">Active Orders</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card content-card text-center h-100">
+                <div class="card-body">
+                    <h2 class="fw-bold">{{ my_delivered_orders_count }}</h2>
+                    <p class="text-muted mb-0">Delivered</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card content-card text-center h-100">
+                <div class="card-body">
+                    <h2 class="fw-bold">{{ my_cancelled_orders_count }}</h2>
+                    <p class="text-muted mb-0">Cancelled</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card content-card">
+        <div class="card-body">
+            <h3 class="h5 fw-bold">Quick Actions</h3>
+            <div class="d-flex flex-wrap gap-2 mt-3">
+                <a href="{% url 'restaurant_list' %}" class="btn btn-primary">Restaurants</a>
+                <a href="{% url 'menu_list' %}" class="btn btn-primary">Menu</a>
+                <a href="{% url 'order_list' %}" class="btn btn-primary">My Orders</a>
+            </div>
+        </div>
+    </div>
+{% endif %}
+
+{% if user.is_authenticated and user.role == 'driver' %}
+    <div class="row g-4 mb-4">
+        <div class="col-md-4">
+            <div class="card content-card text-center h-100">
+                <div class="card-body">
+                    <h2 class="fw-bold">{{ my_deliveries_count }}</h2>
+                    <p class="text-muted mb-0">My Deliveries</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card content-card text-center h-100">
+                <div class="card-body">
+                    <h2 class="fw-bold">{{ my_in_progress_count }}</h2>
+                    <p class="text-muted mb-0">In Progress</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card content-card text-center h-100">
+                <div class="card-body">
+                    <h2 class="fw-bold">{{ my_delivered_count }}</h2>
+                    <p class="text-muted mb-0">Delivered</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card content-card">
+        <div class="card-body">
+            <h3 class="h5 fw-bold">Quick Actions</h3>
+            <div class="d-flex flex-wrap gap-2 mt-3">
+                <a href="{% url 'delivery_list' %}" class="btn btn-primary">My Deliveries</a>
+            </div>
+        </div>
+    </div>
+{% endif %}
+{% endblock %}

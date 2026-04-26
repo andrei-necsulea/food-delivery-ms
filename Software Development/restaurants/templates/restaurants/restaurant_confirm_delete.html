@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+
+{% block title %}Delete Restaurant{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-6">
+        <div class="card content-card border-0">
+            <div class="card-body p-4">
+                <h1 class="h3 fw-bold text-danger mb-3">Delete Restaurant</h1>
+                <p class="mb-4">
+                    Are you sure you want to delete <strong>{{ restaurant.name }}</strong>?
+                </p>
+
+                <form method="post" class="d-flex gap-2">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger">Yes, delete</button>
+                    <a href="{% url 'restaurant_list' %}" class="btn btn-outline-secondary">Cancel</a>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

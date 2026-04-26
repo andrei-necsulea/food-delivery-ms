@@ -1,0 +1,64 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if delivery %}Edit Delivery{% else %}Create Delivery{% endif %}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-7">
+        <div class="card content-card">
+            <div class="card-body p-4">
+                <h1 class="h3 fw-bold mb-4">
+                    {% if delivery %}Edit Delivery{% else %}Create Delivery{% endif %}
+                </h1>
+
+                <form method="post">
+                    {% csrf_token %}
+
+                    {% if not driver_mode %}
+                        <div class="mb-3">
+                            <label class="form-label">Order</label>
+                            <select name="order_id" class="form-select" required>
+                                {% for order in orders %}
+                                    <option value="{{ order.id }}"
+                                        {% if delivery and delivery.order_id == order.id %}selected{% endif %}>
+                                        Order #{{ order.id }} - {{ order.customer.username }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Driver</label>
+                            <select name="driver_id" class="form-select">
+                                <option value="">---------</option>
+                                {% for driver in drivers %}
+                                    <option value="{{ driver.id }}"
+                                        {% if delivery and delivery.driver_id == driver.id %}selected{% endif %}>
+                                        {{ driver.username }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    {% endif %}
+
+                    <div class="mb-4">
+                        <label class="form-label">Status</label>
+                        <select name="status" class="form-select" required>
+                            {% for status in allowed_statuses %}
+                                <option value="{{ status }}" {% if delivery.status == status %}selected{% endif %}>
+                                    {{ status|title|cut:"_" }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">Save</button>
+                        <a href="{% url 'delivery_list' %}" class="btn btn-outline-secondary">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
