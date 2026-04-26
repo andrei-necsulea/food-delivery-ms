@@ -10,6 +10,21 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: food_delivery_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres -d food_delivery_test"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
@@ -26,11 +41,23 @@ jobs:
         pip install -r requirements.txt
 
     - name: Run migrations
+      env:
+        DB_HOST: 127.0.0.1
+        DB_PORT: 5432
+        DB_NAME: food_delivery_test
+        DB_USER: postgres
+        DB_PASSWORD: postgres
       run: |
         cd "Software Development"
         python manage.py migrate
 
     - name: Run tests
+      env:
+        DB_HOST: 127.0.0.1
+        DB_PORT: 5432
+        DB_NAME: food_delivery_test
+        DB_USER: postgres
+        DB_PASSWORD: postgres
       run: |
         cd "Software Development"
         python manage.py test
