@@ -1,0 +1,117 @@
+{% extends 'base.html' %}
+
+{% block title %}Restaurants{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center page-header flex-wrap gap-3">
+    <div>
+        <h1 class="fw-bold mb-1">Restaurants</h1>
+        <p class="text-muted mb-0">Search restaurants, cuisines or dishes.</p>
+    </div>
+
+    {% if user.is_authenticated and user.role == 'admin' or user.is_authenticated and user.role == 'manager' %}
+        <a href="{% url 'restaurant_create' %}" class="btn btn-primary">Add Restaurant</a>
+    {% endif %}
+</div>
+
+<div class="card content-card mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-2">
+            <div class="col-md-10">
+                <input
+                    type="text"
+                    name="q"
+                    class="form-control"
+                    placeholder="Search restaurant, cuisine or dish..."
+                    value="{{ query }}"
+                >
+            </div>
+            <div class="col-md-2 d-grid">
+                <button type="submit" class="btn btn-dark">Search</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% if restaurants %}
+    <div class="row g-4">
+        {% for restaurant in restaurants %}
+            <div class="col-md-6 col-xl-4">
+                <div class="card content-card h-100 overflow-hidden">
+
+                    {% if restaurant.image_url %}
+                        <img src="{{ restaurant.image_url }}" class="card-img-top" style="height: 190px; object-fit: cover;" alt="{{ restaurant.name }}">
+                    {% else %}
+                        <div class="bg-secondary d-flex align-items-center justify-content-center text-white" style="height: 190px;">
+                            <span class="fw-bold">{{ restaurant.name }}</span>
+                        </div>
+                    {% endif %}
+
+                    <div class="card-body d-flex flex-column">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <div>
+                                <h3 class="h5 fw-bold mb-1">{{ restaurant.name }}</h3>
+                                <p class="text-muted mb-0">{{ restaurant.address }}</p>
+                            </div>
+
+                            <span class="badge bg-warning text-dark">★ {{ restaurant.rating }}</span>
+                        </div>
+
+                        <div class="mb-2">
+                            {% if restaurant.cuisine_type %}
+                                <span class="badge bg-light text-dark border">{{ restaurant.cuisine_type }}</span>
+                            {% endif %}
+                            <span class="badge bg-light text-dark border">{{ restaurant.delivery_time }}</span>
+                        </div>
+
+                        {% if restaurant.description %}
+                            <p class="text-muted small">{{ restaurant.description }}</p>
+                        {% endif %}
+
+                        <div class="mb-3">
+                            <h4 class="h6 fw-semibold">Available dishes</h4>
+
+                            {% if restaurant.menu_items.all %}
+                                <div class="d-flex flex-wrap gap-2">
+                                    {% for item in restaurant.menu_items.all|slice:":4" %}
+                                        <span class="badge bg-light text-dark border">
+                                            {{ item.name }} - {{ item.price }} lei
+                                        </span>
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                <p class="text-muted mb-0">No menu items available.</p>
+                            {% endif %}
+                        </div>
+
+                        <div class="mt-auto d-flex flex-wrap gap-2">
+                            <a href="{% url 'menu_list' %}?restaurant={{ restaurant.id }}" class="btn btn-outline-primary btn-sm">
+                                View Menu
+                            </a>
+
+                            {% if user.is_authenticated and user.role == 'admin' or user.is_authenticated and user.role == 'manager' %}
+                                <a href="{% url 'restaurant_update' restaurant.id %}" class="btn btn-warning btn-sm">
+                                    Edit
+                                </a>
+                            {% endif %}
+
+                            {% if user.is_authenticated and user.role == 'admin' %}
+                                <a href="{% url 'restaurant_delete' restaurant.id %}" class="btn btn-danger btn-sm">
+                                    Delete
+                                </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+{% else %}
+    <div class="card content-card">
+        <div class="card-body text-center py-5">
+            <h4>No matching restaurants found</h4>
+            <p class="text-muted mb-0">Try another restaurant, cuisine or dish.</p>
+        </div>
+    </div>
+{% endif %}
+{% endblock %}
