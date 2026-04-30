@@ -1,5 +1,5 @@
 from django import forms
-from .models import WorkingHours, Restaurant
+from .models import WorkingHours
 
 
 class WorkingHoursForm(forms.ModelForm):

@@ -2,7 +2,6 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.db.models import Q, Prefetch
 from django.contrib import messages
 from .models import Restaurant, WorkingHours
-from .forms import WorkingHoursForm
 from menu.models import MenuItem
 from accounts.decorators import role_required
 
