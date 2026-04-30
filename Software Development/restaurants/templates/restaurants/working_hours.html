@@ -1,0 +1,114 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ restaurant.name }} - Working Hours{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card content-card">
+            <div class="card-body p-4">
+                <h1 class="h3 fw-bold mb-4">
+                    <i class="fas fa-clock"></i> Working Hours - {{ restaurant.name }}
+                </h1>
+
+                {% if messages %}
+                    {% for message in messages %}
+                        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+
+                <form method="post">
+                    {% csrf_token %}
+
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Day</th>
+                                    <th>Status</th>
+                                    <th>Opening Time</th>
+                                    <th>Closing Time</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for working_hour in working_hours %}
+                                    <tr>
+                                        <td class="fw-bold">
+                                            {{ working_hour.get_day_of_week_display }}
+                                        </td>
+                                        <td>
+                                            <div class="form-check">
+                                                <input 
+                                                    class="form-check-input toggle-closed" 
+                                                    type="checkbox" 
+                                                    id="closed_{{ working_hour.day_of_week }}"
+                                                    name="day_{{ working_hour.day_of_week }}_closed"
+                                                    {% if working_hour.is_closed %}checked{% endif %}
+                                                    data-day="{{ working_hour.day_of_week }}"
+                                                >
+                                                <label class="form-check-label" for="closed_{{ working_hour.day_of_week }}">
+                                                    Closed
+                                                </label>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <input 
+                                                type="time" 
+                                                class="form-control opening-time"
+                                                name="day_{{ working_hour.day_of_week }}_opening"
+                                                value="{{ working_hour.opening_time|time:'H:i' }}"
+                                                {% if working_hour.is_closed %}disabled{% endif %}
+                                                data-day="{{ working_hour.day_of_week }}"
+                                            >
+                                        </td>
+                                        <td>
+                                            <input 
+                                                type="time" 
+                                                class="form-control closing-time"
+                                                name="day_{{ working_hour.day_of_week }}_closing"
+                                                value="{{ working_hour.closing_time|time:'H:i' }}"
+                                                {% if working_hour.is_closed %}disabled{% endif %}
+                                                data-day="{{ working_hour.day_of_week }}"
+                                            >
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-between">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Save Working Hours
+                        </button>
+                        <a href="{% url 'restaurant_list' %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-arrow-left"></i> Back
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.querySelectorAll('.toggle-closed').forEach(checkbox => {
+    checkbox.addEventListener('change', function() {
+        const day = this.dataset.day;
+        const openingInput = document.querySelector(`input[data-day="${day}"].opening-time`);
+        const closingInput = document.querySelector(`input[data-day="${day}"].closing-time`);
+        
+        if (this.checked) {
+            openingInput.disabled = true;
+            closingInput.disabled = true;
+        } else {
+            openingInput.disabled = false;
+            closingInput.disabled = false;
+        }
+    });
+});
+</script>
+{% endblock %}
