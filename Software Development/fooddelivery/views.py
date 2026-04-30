@@ -1,4 +1,5 @@
 from django.shortcuts import render
+from accounts.decorators import role_required
 from restaurants.models import Restaurant
 from menu.models import MenuItem
 from orders.models import Order
@@ -59,3 +60,24 @@ def home(request):
             ).count()
 
     return render(request, 'home.html', context)
+
+
+@role_required(['manager'])
+def manager_panel(request):
+    my_restaurants = Restaurant.objects.filter(manager=request.user)
+    my_orders = Order.objects.filter(restaurant__manager=request.user).select_related('customer', 'restaurant')
+    my_menu_items = MenuItem.objects.filter(restaurant__manager=request.user).select_related('restaurant')
+
+    context = {
+        'my_restaurants': my_restaurants,
+        'my_orders': my_orders[:10],
+        'my_menu_items': my_menu_items,
+        'my_restaurants_count': my_restaurants.count(),
+        'my_menu_items_count': my_menu_items.count(),
+        'my_orders_count': my_orders.count(),
+        'my_active_orders_count': my_orders.exclude(
+            status__in=[Order.STATUS_DELIVERED, Order.STATUS_CANCELLED]
+        ).count(),
+        'working_hours_edit_base': 'working_hours_edit',
+    }
+    return render(request, 'manager_panel.html', context)
