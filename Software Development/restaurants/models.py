@@ -11,6 +11,7 @@ class Restaurant(models.Model):
     image_url = models.URLField(blank=True)
     rating = models.DecimalField(max_digits=3, decimal_places=1, default=4.5)
     delivery_time = models.CharField(max_length=50, default="30-45 min")
+    working_hours = models.CharField(max_length=100, default="10:00 - 22:00")
 
     manager = models.ForeignKey(
         User,
