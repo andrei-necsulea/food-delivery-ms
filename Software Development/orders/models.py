@@ -43,6 +43,7 @@ class Order(models.Model):
     STATUS_CREATED = 'created'
     STATUS_ACCEPTED = 'accepted'
     STATUS_PREPARING = 'preparing'
+    STATUS_READY = 'ready'
     STATUS_OUT_FOR_DELIVERY = 'out_for_delivery'
     STATUS_DELIVERED = 'delivered'
     STATUS_CANCELLED = 'cancelled'
@@ -51,6 +52,7 @@ class Order(models.Model):
         (STATUS_CREATED, 'Created'),
         (STATUS_ACCEPTED, 'Accepted'),
         (STATUS_PREPARING, 'Preparing'),
+        (STATUS_READY, 'Ready for Delivery'),
         (STATUS_OUT_FOR_DELIVERY, 'Out for Delivery'),
         (STATUS_DELIVERED, 'Delivered'),
         (STATUS_CANCELLED, 'Cancelled'),
@@ -83,7 +85,8 @@ class Order(models.Model):
         transitions = {
             self.STATUS_CREATED: [self.STATUS_ACCEPTED, self.STATUS_CANCELLED],
             self.STATUS_ACCEPTED: [self.STATUS_PREPARING, self.STATUS_CANCELLED],
-            self.STATUS_PREPARING: [self.STATUS_OUT_FOR_DELIVERY],
+            self.STATUS_PREPARING: [self.STATUS_READY, self.STATUS_CANCELLED],
+            self.STATUS_READY: [self.STATUS_OUT_FOR_DELIVERY, self.STATUS_CANCELLED],
             self.STATUS_OUT_FOR_DELIVERY: [],
             self.STATUS_DELIVERED: [],
             self.STATUS_CANCELLED: [],
