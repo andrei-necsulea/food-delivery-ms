@@ -49,6 +49,11 @@
                             <label class="form-label">Delivery Time</label>
                             <input type="text" name="delivery_time" class="form-control" value="{{ restaurant.delivery_time|default:'30-45 min' }}">
                         </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Working Hours</label>
+                            <input type="text" name="working_hours" class="form-control" value="{{ restaurant.working_hours|default:'10:00 - 22:00' }}" placeholder="10:00 - 22:00">
+                        </div>
                     </div>
 
                     {% if user.role == 'admin' %}

@@ -3,6 +3,7 @@ from django.contrib import messages
 
 from .models import MenuItem
 from restaurants.models import Restaurant
+from orders.models import OrderItem
 from accounts.decorators import role_required
 
 
@@ -14,17 +15,14 @@ def menu_list(request):
         if request.user.role == 'admin':
             items = MenuItem.objects.select_related('restaurant').all()
             restaurants = Restaurant.objects.all()
-
         elif request.user.role == 'manager':
             items = MenuItem.objects.select_related('restaurant').filter(
                 restaurant__manager=request.user
             )
             restaurants = Restaurant.objects.filter(manager=request.user)
-
         else:
             items = MenuItem.objects.select_related('restaurant').all()
             restaurants = Restaurant.objects.all()
-
     else:
         items = MenuItem.objects.select_related('restaurant').all()
         restaurants = Restaurant.objects.all()
@@ -42,40 +40,42 @@ def menu_list(request):
 
 @role_required(['admin', 'manager'])
 def menu_create(request):
-    if request.user.role == 'admin':
-        restaurants = Restaurant.objects.all()
-    else:
-        restaurants = Restaurant.objects.filter(manager=request.user)
+    restaurants = Restaurant.objects.all() if request.user.role == 'admin' else Restaurant.objects.filter(manager=request.user)
 
     if request.method == 'POST':
         restaurant_id = request.POST.get('restaurant_id')
-        name = request.POST.get('name')
-        description = request.POST.get('description')
-        image_url = request.POST.get('image_url')
         price = request.POST.get('price')
 
+        try:
+            price_value = float(price)
+            if price_value <= 0:
+                messages.error(request, 'Price must be greater than 0.')
+                return redirect('menu_create')
+        except (TypeError, ValueError):
+            messages.error(request, 'Invalid price.')
+            return redirect('menu_create')
+
         if request.user.role == 'manager':
-            restaurant = get_object_or_404(
-                Restaurant,
-                id=restaurant_id,
-                manager=request.user
-            )
+            restaurant = get_object_or_404(Restaurant, id=restaurant_id, manager=request.user)
         else:
             restaurant = get_object_or_404(Restaurant, id=restaurant_id)
 
         MenuItem.objects.create(
             restaurant=restaurant,
-            name=name,
-            description=description,
-            image_url=image_url,
-            price=price
+            name=request.POST.get('name'),
+            description=request.POST.get('description'),
+            image_url=request.POST.get('image_url'),
+            category=request.POST.get('category') or 'other',
+            price=price,
+            is_available=bool(request.POST.get('is_available'))
         )
 
         messages.success(request, 'Menu item created successfully.')
         return redirect('menu_list')
 
     return render(request, 'menu/menu_form.html', {
-        'restaurants': restaurants
+        'restaurants': restaurants,
+        'category_choices': MenuItem.CATEGORY_CHOICES,
     })
 
 
@@ -85,34 +85,35 @@ def menu_update(request, pk):
         item = get_object_or_404(MenuItem, pk=pk)
         restaurants = Restaurant.objects.all()
     else:
-        item = get_object_or_404(
-            MenuItem,
-            pk=pk,
-            restaurant__manager=request.user
-        )
+        item = get_object_or_404(MenuItem, pk=pk, restaurant__manager=request.user)
         restaurants = Restaurant.objects.filter(manager=request.user)
 
     if request.method == 'POST':
-        restaurant_id = request.POST.get('restaurant_id')
-        name = request.POST.get('name')
-        description = request.POST.get('description')
-        image_url = request.POST.get('image_url')
         price = request.POST.get('price')
 
+        try:
+            price_value = float(price)
+            if price_value <= 0:
+                messages.error(request, 'Price must be greater than 0.')
+                return redirect('menu_update', pk=item.pk)
+        except (TypeError, ValueError):
+            messages.error(request, 'Invalid price.')
+            return redirect('menu_update', pk=item.pk)
+
+        restaurant_id = request.POST.get('restaurant_id')
+
         if request.user.role == 'manager':
-            restaurant = get_object_or_404(
-                Restaurant,
-                id=restaurant_id,
-                manager=request.user
-            )
+            restaurant = get_object_or_404(Restaurant, id=restaurant_id, manager=request.user)
         else:
             restaurant = get_object_or_404(Restaurant, id=restaurant_id)
 
         item.restaurant = restaurant
-        item.name = name
-        item.description = description
-        item.image_url = image_url
+        item.name = request.POST.get('name')
+        item.description = request.POST.get('description')
+        item.image_url = request.POST.get('image_url')
+        item.category = request.POST.get('category') or 'other'
         item.price = price
+        item.is_available = bool(request.POST.get('is_available'))
         item.save()
 
         messages.success(request, 'Menu item updated successfully.')
@@ -120,7 +121,8 @@ def menu_update(request, pk):
 
     return render(request, 'menu/menu_form.html', {
         'item': item,
-        'restaurants': restaurants
+        'restaurants': restaurants,
+        'category_choices': MenuItem.CATEGORY_CHOICES,
     })
 
 
@@ -128,11 +130,13 @@ def menu_update(request, pk):
 def menu_delete(request, pk):
     item = get_object_or_404(MenuItem, pk=pk)
 
+    if OrderItem.objects.filter(menu_item=item).exists():
+        messages.error(request, 'This item cannot be deleted because it already exists in an order.')
+        return redirect('menu_list')
+
     if request.method == 'POST':
         item.delete()
         messages.success(request, 'Menu item deleted successfully.')
         return redirect('menu_list')
 
-    return render(request, 'menu/menu_confirm_delete.html', {
-        'item': item
-    })
+    return render(request, 'menu/menu_confirm_delete.html', {'item': item})

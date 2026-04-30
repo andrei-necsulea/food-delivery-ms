@@ -27,7 +27,8 @@ def restaurant_list(request):
         restaurants = restaurants.filter(
             Q(name__icontains=query) |
             Q(cuisine_type__icontains=query) |
-            Q(menu_items__name__icontains=query)
+            Q(menu_items__name__icontains=query) |
+            Q(menu_items__category__icontains=query)
         ).distinct()
 
     return render(request, 'restaurants/restaurant_list.html', {
@@ -35,28 +36,34 @@ def restaurant_list(request):
         'query': query,
     })
 
+def restaurant_detail(request, pk):
+    if request.user.is_authenticated and request.user.role == 'manager':
+        restaurant = get_object_or_404(Restaurant, pk=pk, manager=request.user)
+    else:
+        restaurant = get_object_or_404(Restaurant, pk=pk)
+
+    menu_items = restaurant.menu_items.all()
+
+    return render(request, 'restaurants/restaurant_detail.html', {
+        'restaurant': restaurant,
+        'menu_items': menu_items,
+    })
+
 
 @role_required(['admin', 'manager'])
 def restaurant_create(request):
     if request.method == 'POST':
-        name = request.POST.get('name')
-        address = request.POST.get('address')
-        cuisine_type = request.POST.get('cuisine_type')
-        description = request.POST.get('description')
-        image_url = request.POST.get('image_url')
-        rating = request.POST.get('rating') or 4.5
-        delivery_time = request.POST.get('delivery_time') or "30-45 min"
-
         manager_id = request.POST.get('manager_id') if request.user.role == 'admin' else request.user.id
 
         Restaurant.objects.create(
-            name=name,
-            address=address,
-            cuisine_type=cuisine_type,
-            description=description,
-            image_url=image_url,
-            rating=rating,
-            delivery_time=delivery_time,
+            name=request.POST.get('name'),
+            address=request.POST.get('address'),
+            cuisine_type=request.POST.get('cuisine_type'),
+            description=request.POST.get('description'),
+            image_url=request.POST.get('image_url'),
+            rating=request.POST.get('rating') or 4.5,
+            delivery_time=request.POST.get('delivery_time') or "30-45 min",
+            working_hours=request.POST.get('working_hours') or "10:00 - 22:00",
             manager_id=manager_id
         )
 
@@ -81,6 +88,7 @@ def restaurant_update(request, pk):
         restaurant.image_url = request.POST.get('image_url')
         restaurant.rating = request.POST.get('rating') or 4.5
         restaurant.delivery_time = request.POST.get('delivery_time') or "30-45 min"
+        restaurant.working_hours = request.POST.get('working_hours') or "10:00 - 22:00"
 
         if request.user.role == 'admin':
             restaurant.manager_id = request.POST.get('manager_id')

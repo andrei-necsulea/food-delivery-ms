@@ -40,7 +40,12 @@
                 <div class="card content-card h-100 overflow-hidden">
 
                     {% if restaurant.image_url %}
-                        <img src="{{ restaurant.image_url }}" class="card-img-top" style="height: 190px; object-fit: cover;" alt="{{ restaurant.name }}">
+                        <img
+                            src="{{ restaurant.image_url }}"
+                            class="card-img-top"
+                            style="height: 190px; object-fit: cover;"
+                            alt="{{ restaurant.name }}"
+                        >
                     {% else %}
                         <div class="bg-secondary d-flex align-items-center justify-content-center text-white" style="height: 190px;">
                             <span class="fw-bold">{{ restaurant.name }}</span>
@@ -48,6 +53,7 @@
                     {% endif %}
 
                     <div class="card-body d-flex flex-column">
+
                         <div class="d-flex justify-content-between align-items-start mb-2">
                             <div>
                                 <h3 class="h5 fw-bold mb-1">{{ restaurant.name }}</h3>
@@ -57,15 +63,17 @@
                             <span class="badge bg-warning text-dark">★ {{ restaurant.rating }}</span>
                         </div>
 
-                        <div class="mb-2">
+                        <div class="mb-2 d-flex flex-wrap gap-2">
                             {% if restaurant.cuisine_type %}
                                 <span class="badge bg-light text-dark border">{{ restaurant.cuisine_type }}</span>
                             {% endif %}
+
                             <span class="badge bg-light text-dark border">{{ restaurant.delivery_time }}</span>
+                            <span class="badge bg-light text-dark border">{{ restaurant.working_hours }}</span>
                         </div>
 
                         {% if restaurant.description %}
-                            <p class="text-muted small">{{ restaurant.description }}</p>
+                            <p class="text-muted small mb-3">{{ restaurant.description }}</p>
                         {% endif %}
 
                         <div class="mb-3">
@@ -74,9 +82,15 @@
                             {% if restaurant.menu_items.all %}
                                 <div class="d-flex flex-wrap gap-2">
                                     {% for item in restaurant.menu_items.all|slice:":4" %}
-                                        <span class="badge bg-light text-dark border">
-                                            {{ item.name }} - {{ item.price }} lei
-                                        </span>
+                                        {% if item.is_available %}
+                                            <span class="badge bg-light text-dark border">
+                                                {{ item.name }} - {{ item.price }} lei
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">
+                                                {{ item.name }} unavailable
+                                            </span>
+                                        {% endif %}
                                     {% endfor %}
                                 </div>
                             {% else %}
@@ -85,7 +99,11 @@
                         </div>
 
                         <div class="mt-auto d-flex flex-wrap gap-2">
-                            <a href="{% url 'menu_list' %}?restaurant={{ restaurant.id }}" class="btn btn-outline-primary btn-sm">
+                            <a href="{% url 'restaurant_detail' restaurant.id %}" class="btn btn-outline-primary btn-sm">
+                                View Restaurant
+                            </a>
+
+                            <a href="{% url 'menu_list' %}?restaurant={{ restaurant.id }}" class="btn btn-outline-secondary btn-sm">
                                 View Menu
                             </a>
 
@@ -101,6 +119,7 @@
                                 </a>
                             {% endif %}
                         </div>
+
                     </div>
                 </div>
             </div>
