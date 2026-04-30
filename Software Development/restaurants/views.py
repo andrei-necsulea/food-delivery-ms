@@ -9,6 +9,7 @@ from accounts.decorators import role_required
 
 def restaurant_list(request):
     query = request.GET.get('q', '').strip()
+    is_ajax = request.headers.get('x-requested-with') == 'XMLHttpRequest'
 
     base_queryset = Restaurant.objects.prefetch_related(
         Prefetch('menu_items', queryset=MenuItem.objects.all())
@@ -31,10 +32,15 @@ def restaurant_list(request):
             Q(menu_items__name__icontains=query)
         ).distinct()
 
-    return render(request, 'restaurants/restaurant_list.html', {
+    context = {
         'restaurants': restaurants,
         'query': query,
-    })
+    }
+
+    if is_ajax:
+        return render(request, 'restaurants/partials/restaurant_results.html', context)
+
+    return render(request, 'restaurants/restaurant_list.html', context)
 
 
 @role_required(['admin', 'manager'])
