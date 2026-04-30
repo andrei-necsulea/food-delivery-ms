@@ -120,6 +120,11 @@ def order_delete(request, pk):
 @role_required(['client'])
 def add_to_cart(request, menu_item_id):
     menu_item = get_object_or_404(MenuItem, pk=menu_item_id)
+
+    if not menu_item.is_available:
+        messages.error(request, 'This item is currently unavailable.')
+        return redirect('menu_list')
+
     cart, created = Cart.objects.get_or_create(customer=request.user)
 
     if cart.restaurant and cart.restaurant != menu_item.restaurant:
@@ -128,6 +133,21 @@ def add_to_cart(request, menu_item_id):
             'You can only order from one restaurant at a time. Please clear your current cart first.'
         )
         return redirect('cart_detail')
+
+    if not cart.restaurant:
+        cart.restaurant = menu_item.restaurant
+        cart.save()
+
+    cart_item = CartItem.objects.filter(cart=cart, menu_item=menu_item).first()
+
+    if cart_item:
+        cart_item.quantity += 1
+        cart_item.save()
+    else:
+        CartItem.objects.create(cart=cart, menu_item=menu_item, quantity=1)
+
+    messages.success(request, f'{menu_item.name} added to cart.')
+    return redirect('cart_detail')
 
     if not cart.restaurant:
         cart.restaurant = menu_item.restaurant
