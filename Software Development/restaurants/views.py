@@ -134,7 +134,7 @@ def working_hours_edit(request, pk):
             defaults={'opening_time': '09:00', 'closing_time': '21:00'}
         )
 
-    working_hours = restaurant.working_hours.all().order_by('day_of_week')
+    working_hours = restaurant.working_hour_entries.all().order_by('day_of_week')
 
     if request.method == 'POST':
         day_dict = dict(WorkingHours.DAYS_OF_WEEK)

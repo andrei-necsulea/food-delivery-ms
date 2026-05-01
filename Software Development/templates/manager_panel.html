@@ -78,8 +78,8 @@
                                     <tr>
                                         <td>{{ restaurant.name }}</td>
                                         <td>
-                                            {% if restaurant.working_hours.all %}
-                                                {{ restaurant.working_hours.count }} days configured
+                                            {% if restaurant.working_hour_entries.all %}
+                                                {{ restaurant.working_hour_entries.count }} days configured
                                             {% else %}
                                                 Not set
                                             {% endif %}

@@ -37,7 +37,7 @@ class WorkingHours(models.Model):
     restaurant = models.ForeignKey(
         Restaurant,
         on_delete=models.CASCADE,
-        related_name='working_hours'
+        related_name='working_hour_entries'
     )
     day_of_week = models.IntegerField(choices=DAYS_OF_WEEK)
     opening_time = models.TimeField()
