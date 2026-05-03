@@ -1,4 +1,5 @@
 from django.shortcuts import render, redirect, get_object_or_404
+from django.db.models import Q
 from django.contrib import messages
 
 from .models import MenuItem
@@ -9,6 +10,8 @@ from accounts.decorators import role_required
 
 def menu_list(request):
     restaurant_id = request.GET.get('restaurant')
+    query = request.GET.get('q', '').strip()
+    is_ajax = request.headers.get('x-requested-with') == 'XMLHttpRequest'
     selected_restaurant = None
 
     if request.user.is_authenticated:
@@ -31,11 +34,25 @@ def menu_list(request):
         selected_restaurant = get_object_or_404(Restaurant, pk=restaurant_id)
         items = items.filter(restaurant_id=restaurant_id)
 
-    return render(request, 'menu/menu_list.html', {
+    if query:
+        items = items.filter(
+            Q(name__icontains=query) |
+            Q(description__icontains=query) |
+            Q(restaurant__name__icontains=query)
+        )
+
+    context = {
         'items': items,
         'restaurants': restaurants,
         'selected_restaurant': selected_restaurant,
-    })
+        'query': query,
+        'restaurant_id': restaurant_id,
+    }
+
+    if is_ajax:
+        return render(request, 'menu/partials/menu_results.html', context)
+
+    return render(request, 'menu/menu_list.html', context)
 
 
 @role_required(['admin', 'manager'])

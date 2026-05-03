@@ -1,13 +1,14 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.db.models import Q, Prefetch
 from django.contrib import messages
-from .models import Restaurant
+from .models import Restaurant, WorkingHours
 from menu.models import MenuItem
 from accounts.decorators import role_required
 
 
 def restaurant_list(request):
     query = request.GET.get('q', '').strip()
+    is_ajax = request.headers.get('x-requested-with') == 'XMLHttpRequest'
 
     base_queryset = Restaurant.objects.prefetch_related(
         Prefetch('menu_items', queryset=MenuItem.objects.all())
@@ -31,10 +32,15 @@ def restaurant_list(request):
             Q(menu_items__category__icontains=query)
         ).distinct()
 
-    return render(request, 'restaurants/restaurant_list.html', {
+    context = {
         'restaurants': restaurants,
         'query': query,
-    })
+    }
+
+    if is_ajax:
+        return render(request, 'restaurants/partials/restaurant_results.html', context)
+
+    return render(request, 'restaurants/restaurant_list.html', context)
 
 def restaurant_detail(request, pk):
     if request.user.is_authenticated and request.user.role == 'manager':
@@ -110,3 +116,53 @@ def restaurant_delete(request, pk):
         return redirect('restaurant_list')
 
     return render(request, 'restaurants/restaurant_confirm_delete.html', {'restaurant': restaurant})
+
+
+@role_required(['admin', 'manager'])
+def working_hours_edit(request, pk):
+    """Edit working hours for a restaurant (manager or admin only)"""
+    if request.user.role == 'admin':
+        restaurant = get_object_or_404(Restaurant, pk=pk)
+    else:
+        restaurant = get_object_or_404(Restaurant, pk=pk, manager=request.user)
+
+    # Ensure all 7 days have entries
+    for day in range(7):
+        WorkingHours.objects.get_or_create(
+            restaurant=restaurant,
+            day_of_week=day,
+            defaults={'opening_time': '09:00', 'closing_time': '21:00'}
+        )
+
+    working_hours = restaurant.working_hour_entries.all().order_by('day_of_week')
+
+    if request.method == 'POST':
+        day_dict = dict(WorkingHours.DAYS_OF_WEEK)
+        
+        for working_hour in working_hours:
+            day_num = working_hour.day_of_week
+            is_closed = request.POST.get(f'day_{day_num}_closed') == 'on'
+            
+            if is_closed:
+                working_hour.is_closed = True
+            else:
+                opening_time = request.POST.get(f'day_{day_num}_opening')
+                closing_time = request.POST.get(f'day_{day_num}_closing')
+                
+                if opening_time and closing_time:
+                    if opening_time >= closing_time:
+                        messages.error(request, f'{day_dict[day_num]}: Opening time must be before closing time.')
+                        break
+                    working_hour.opening_time = opening_time
+                    working_hour.closing_time = closing_time
+                    working_hour.is_closed = False
+            
+            working_hour.save()
+        else:
+            messages.success(request, 'Working hours updated successfully.')
+            return redirect('restaurant_list')
+
+    return render(request, 'restaurants/working_hours.html', {
+        'restaurant': restaurant,
+        'working_hours': working_hours,
+    })

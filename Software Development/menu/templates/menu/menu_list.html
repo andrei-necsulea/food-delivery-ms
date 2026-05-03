@@ -37,10 +37,35 @@
     </div>
 </div>
 
+<div class="card content-card mb-4">
+    <div class="card-body">
+        <form method="get" action="{% url 'menu_list' %}" class="row g-2" data-ajax-search="true" data-results-target="#menu-results">
+            {% if restaurant_id %}
+                <input type="hidden" name="restaurant" value="{{ restaurant_id }}">
+            {% endif %}
+            <div class="col-md-10">
+                <input
+                    type="text"
+                    name="q"
+                    class="form-control"
+                    placeholder="Search dishes, descriptions or restaurants..."
+                    value="{{ query }}"
+                >
+            </div>
+            <div class="col-md-2 d-grid">
+                <button type="submit" class="btn btn-dark">Search</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 {% if not selected_restaurant %}
 <div class="card content-card mb-4">
     <div class="card-body">
-        <form method="get" class="row g-2">
+        <form method="get" action="{% url 'menu_list' %}" class="row g-2" data-ajax-search="true" data-results-target="#menu-results">
+            {% if query %}
+                <input type="hidden" name="q" value="{{ query }}">
+            {% endif %}
             <div class="col-md-10">
                 <select name="restaurant" class="form-select">
                     <option value="">Choose a restaurant...</option>

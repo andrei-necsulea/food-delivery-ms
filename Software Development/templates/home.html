@@ -16,7 +16,7 @@
         </p>
     {% endif %}
 
-    <form method="get" action="{% url 'restaurant_list' %}" class="mt-4">
+    <form method="get" action="{% url 'restaurant_list' %}" class="mt-4" data-ajax-search="true" data-results-target="#home-search-results">
         <div class="row g-2">
             <div class="col-md-10">
                 <input
@@ -31,6 +31,15 @@
             </div>
         </div>
     </form>
+</div>
+
+<div id="home-search-results" class="mb-5">
+    <div class="card content-card">
+        <div class="card-body text-center py-5">
+            <h4 class="mb-2">Search results will appear here</h4>
+            <p class="text-muted mb-0">Use the search bar above to load restaurants or dishes without reloading the page.</p>
+        </div>
+    </div>
 </div>
 
 {% if not user.is_authenticated %}

@@ -70,6 +70,8 @@
                                 <span class="badge bg-info text-dark status-badge">Accepted</span>
                             {% elif order.status == 'preparing' %}
                                 <span class="badge bg-warning text-dark status-badge">Preparing</span>
+                            {% elif order.status == 'ready' %}
+                                <span class="badge bg-success status-badge">Ready for Delivery</span>
                             {% elif order.status == 'out_for_delivery' %}
                                 <span class="badge bg-primary status-badge">Out for Delivery</span>
                             {% elif order.status == 'delivered' %}
