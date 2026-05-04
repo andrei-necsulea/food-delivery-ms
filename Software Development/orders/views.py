@@ -7,6 +7,7 @@ from menu.models import MenuItem
 from accounts.models import User
 from restaurants.models import Restaurant
 from accounts.decorators import role_required
+from notifications.models import Notification
 
 
 @role_required(['admin', 'manager', 'client', 'driver'])
@@ -88,6 +89,14 @@ def order_update(request, pk):
             order.payment_method = request.POST.get('payment_method', Order.PAYMENT_METHOD_CASH)
             order.save()
 
+            # Create notification for customer about order modification
+            Notification.create_order_notification(
+                user=order.customer,
+                order=order,
+                title="Order Modified",
+                message=f"Your order #{order.id} has been successfully modified."
+            )
+
             messages.success(request, 'Order updated successfully.')
             return redirect('order_list')
 
@@ -108,8 +117,27 @@ def order_update(request, pk):
             messages.error(request, 'Invalid status transition for manager.')
             return HttpResponseForbidden("Invalid status transition for manager.")
 
+        old_status = order.status
         order.status = new_status
         order.save()
+
+        # Create notification for customer about status change
+        status_messages = {
+            Order.STATUS_ACCEPTED: f"Your order #{order.id} has been accepted by the restaurant.",
+            Order.STATUS_PREPARING: f"Your order #{order.id} is now being prepared.",
+            Order.STATUS_READY: f"Your order #{order.id} is ready for delivery.",
+            Order.STATUS_OUT_FOR_DELIVERY: f"Your order #{order.id} is out for delivery.",
+            Order.STATUS_DELIVERED: f"Your order #{order.id} has been delivered successfully.",
+            Order.STATUS_CANCELLED: f"Your order #{order.id} has been cancelled.",
+        }
+
+        if new_status in status_messages:
+            Notification.create_order_notification(
+                user=order.customer,
+                order=order,
+                title="Order Status Update",
+                message=status_messages[new_status]
+            )
 
         messages.success(request, 'Order status updated successfully.')
         return redirect('order_list')
@@ -290,6 +318,14 @@ def checkout(request):
     cart.items.all().delete()
     cart.restaurant = None
     cart.save()
+
+    # Create notification for customer about new order
+    Notification.create_order_notification(
+        user=request.user,
+        order=order,
+        title="Order Placed Successfully",
+        message=f"Your order #{order.id} has been placed successfully. Total: {order.total_price} lei."
+    )
 
     messages.success(request, 'Order placed successfully.')
     return redirect('order_list')

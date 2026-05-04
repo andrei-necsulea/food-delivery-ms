@@ -29,6 +29,7 @@ urlpatterns = [
     path('menu/', include('menu.urls')),
     path('orders/', include('orders.urls')),
     path('delivery/', include('delivery.urls')),
+    path('notifications/', include('notifications.urls')),
 ]
 
 # Serve media files during development

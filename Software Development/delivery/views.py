@@ -5,6 +5,7 @@ from .models import Delivery
 from orders.models import Order
 from accounts.models import User
 from accounts.decorators import role_required
+from notifications.models import Notification
 
 
 @role_required(['admin', 'driver'])
@@ -48,6 +49,15 @@ def delivery_create(request):
             delivery.order.status = Order.STATUS_DELIVERED
             delivery.order.save()
 
+        # Create notification for customer about delivery assignment
+        if delivery.driver:
+            Notification.create_delivery_notification(
+                user=delivery.order.customer,
+                delivery=delivery,
+                title="Delivery Assigned",
+                message=f"Your order #{delivery.order.id} has been assigned to courier {delivery.driver.username}."
+            )
+
         messages.success(request, 'Delivery created successfully.')
         return redirect('delivery_list')
 
@@ -85,6 +95,22 @@ def delivery_update(request, pk):
                 delivery.order.status = Order.STATUS_DELIVERED
                 delivery.order.save()
 
+            # Create notification for customer about delivery status change
+            status_messages = {
+                Delivery.STATUS_ASSIGNED: f"Your order #{delivery.order.id} has been assigned to a courier.",
+                Delivery.STATUS_PICKED_UP: f"Your order #{delivery.order.id} has been picked up by the courier.",
+                Delivery.STATUS_ON_THE_WAY: f"Your order #{delivery.order.id} is on the way to you.",
+                Delivery.STATUS_DELIVERED: f"Your order #{delivery.order.id} has been delivered successfully.",
+            }
+
+            if delivery.status in status_messages:
+                Notification.create_delivery_notification(
+                    user=delivery.order.customer,
+                    delivery=delivery,
+                    title="Delivery Update",
+                    message=status_messages[delivery.status]
+                )
+
             messages.success(request, 'Delivery updated successfully.')
             return redirect('delivery_list')
 
@@ -117,6 +143,21 @@ def delivery_update(request, pk):
             delivery.order.status = Order.STATUS_DELIVERED
             delivery.order.save()
 
+        # Create notification for customer about delivery status change by driver
+        status_messages = {
+            Delivery.STATUS_PICKED_UP: f"Your order #{delivery.order.id} has been picked up by courier {delivery.driver.username}.",
+            Delivery.STATUS_ON_THE_WAY: f"Your order #{delivery.order.id} is on the way to you.",
+            Delivery.STATUS_DELIVERED: f"Your order #{delivery.order.id} has been delivered successfully.",
+        }
+
+        if delivery.status in status_messages:
+            Notification.create_delivery_notification(
+                user=delivery.order.customer,
+                delivery=delivery,
+                title="Delivery Update",
+                message=status_messages[delivery.status]
+            )
+
         messages.success(request, 'Delivery status updated successfully.')
         return redirect('delivery_list')
 
@@ -148,6 +189,16 @@ def delivery_reassign_courier(request, pk):
         driver_id = request.POST.get('driver_id')
         delivery.driver_id = driver_id if driver_id else None
         delivery.save()
+
+        # Create notification for customer about courier reassignment
+        if delivery.driver:
+            Notification.create_delivery_notification(
+                user=delivery.order.customer,
+                delivery=delivery,
+                title="Courier Reassigned",
+                message=f"The courier for your order #{delivery.order.id} has been changed to {delivery.driver.username}."
+            )
+
         messages.success(request, f'Courier reassigned successfully for delivery #{delivery.id}.')
         return redirect('delivery_list')
 

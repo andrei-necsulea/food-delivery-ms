@@ -1,0 +1,160 @@
+{% extends 'base.html' %}
+
+{% block title %}Notifications{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center page-header">
+    <div>
+        <h1 class="fw-bold mb-1">Notifications</h1>
+        <p class="text-muted mb-0">Stay updated with your orders and deliveries.</p>
+    </div>
+    {% if notifications %}
+    <div class="d-flex gap-2">
+        <button id="markAllReadBtn" class="btn btn-outline-primary">
+            <i class="fas fa-check-double"></i> Mark All as Read
+        </button>
+    </div>
+    {% endif %}
+</div>
+
+<div class="card content-card">
+    <div class="card-body">
+        {% if notifications %}
+        <div class="notification-list">
+            {% for notification in notifications %}
+            <div class="notification-item {% if not notification.is_read %}unread{% endif %} p-3 border-bottom">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div class="flex-grow-1">
+                        <div class="d-flex align-items-center gap-2 mb-1">
+                            <h6 class="mb-0 fw-bold">{{ notification.title }}</h6>
+                            {% if not notification.is_read %}
+                                <span class="badge bg-primary">New</span>
+                            {% endif %}
+                            {% if notification.notification_type == 'order' %}
+                                <span class="badge bg-info">Order</span>
+                            {% elif notification.notification_type == 'delivery' %}
+                                <span class="badge bg-warning text-dark">Delivery</span>
+                            {% else %}
+                                <span class="badge bg-secondary">System</span>
+                            {% endif %}
+                        </div>
+                        <p class="mb-2 text-muted">{{ notification.message }}</p>
+                        <small class="text-muted">
+                            <i class="fas fa-clock"></i> {{ notification.created_at|date:"M d, Y H:i" }}
+                            {% if notification.order %}
+                                | Order #{{ notification.order.id }}
+                            {% endif %}
+                            {% if notification.delivery %}
+                                | Delivery #{{ notification.delivery.id }}
+                            {% endif %}
+                        </small>
+                    </div>
+                    <div class="d-flex gap-1">
+                        {% if not notification.is_read %}
+                        <button class="btn btn-sm btn-outline-primary mark-read-btn"
+                                data-notification-id="{{ notification.id }}">
+                            <i class="fas fa-check"></i>
+                        </button>
+                        {% endif %}
+                        <button class="btn btn-sm btn-outline-danger delete-notification-btn"
+                                data-notification-id="{{ notification.id }}">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-bell-slash fa-3x text-muted mb-3"></i>
+                <h4>No notifications</h4>
+                <p class="text-muted">You don't have any notifications yet.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Mark individual notification as read
+    document.querySelectorAll('.mark-read-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const notificationId = this.dataset.notificationId;
+            markAsRead(notificationId);
+        });
+    });
+
+    // Delete notification
+    document.querySelectorAll('.delete-notification-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const notificationId = this.dataset.notificationId;
+            deleteNotification(notificationId);
+        });
+    });
+
+    // Mark all as read
+    const markAllReadBtn = document.getElementById('markAllReadBtn');
+    if (markAllReadBtn) {
+        markAllReadBtn.addEventListener('click', function() {
+            markAllAsRead();
+        });
+    }
+});
+
+function markAsRead(notificationId) {
+    fetch(`/notifications/mark-read/${notificationId}/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        }
+    })
+    .catch(error => console.error('Error:', error));
+}
+
+function deleteNotification(notificationId) {
+    if (confirm('Are you sure you want to delete this notification?')) {
+        fetch(`/notifications/delete/${notificationId}/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            }
+        })
+        .catch(error => console.error('Error:', error));
+    }
+}
+
+function markAllAsRead() {
+    fetch('/notifications/mark-all-read/', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        }
+    })
+    .catch(error => console.error('Error:', error));
+}
+</script>
+{% endblock %}

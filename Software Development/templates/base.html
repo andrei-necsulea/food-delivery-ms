@@ -195,11 +195,27 @@
                     <li class="nav-item">
                         <a class="nav-link" href="{% url 'order_list' %}">My Orders</a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'notification_list' %}">
+                            🔔 Notifications
+                            {% if notification_count > 0 %}
+                                <span class="badge bg-danger">{{ notification_count }}</span>
+                            {% endif %}
+                        </a>
+                    </li>
                 {% endif %}
 
                 {% if user.is_authenticated and user.role == 'driver' %}
                     <li class="nav-item">
                         <a class="nav-link" href="{% url 'delivery_list' %}">My Deliveries</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'notification_list' %}">
+                            🔔 Notifications
+                            {% if notification_count > 0 %}
+                                <span class="badge bg-danger">{{ notification_count }}</span>
+                            {% endif %}
+                        </a>
                     </li>
                 {% endif %}
 
