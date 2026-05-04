@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+
+{% block title %}Cancel Order{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-6">
+        <div class="card content-card">
+            <div class="card-body p-4">
+                <h1 class="h3 fw-bold text-danger mb-3">Cancel Order</h1>
+
+                <p class="mb-4">
+                    Are you sure you want to cancel order <strong>#{{ order.id }}</strong>?
+                    This action can only be done while the order is still waiting for manager approval.
+                </p>
+
+                <form method="post" class="d-flex gap-2">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger">Yes, cancel</button>
+                    <a href="{% url 'order_list' %}" class="btn btn-outline-secondary">Back</a>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

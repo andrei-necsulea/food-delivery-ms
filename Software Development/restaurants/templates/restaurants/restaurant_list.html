@@ -113,7 +113,7 @@
                                 </a>
                             {% endif %}
 
-                            {% if user.is_authenticated and user.role == 'admin' %}
+                            {% if user.is_authenticated and user.role == 'admin' or user.is_authenticated and user.role == 'manager' %}
                                 <a href="{% url 'restaurant_delete' restaurant.id %}" class="btn btn-danger btn-sm">
                                     Delete
                                 </a>

@@ -9,7 +9,12 @@
             <div class="card-body p-4">
                 <h1 class="h3 fw-bold text-danger mb-3">Delete Menu Item</h1>
                 <p class="mb-4">
-                    Are you sure you want to delete <strong>{{ item.name }}</strong>?
+                    {% if user.role == 'manager' %}
+                        Are you sure you want to delete your menu item <strong>{{ item.name }}</strong>?
+                        This action cannot be undone and the item will be removed from the restaurant menu.
+                    {% else %}
+                        Are you sure you want to delete <strong>{{ item.name }}</strong>?
+                    {% endif %}
                 </p>
 
                 <form method="post" class="d-flex gap-2">

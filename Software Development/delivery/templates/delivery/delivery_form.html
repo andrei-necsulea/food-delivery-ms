@@ -18,12 +18,17 @@
                         <div class="mb-3">
                             <label class="form-label">Order</label>
                             <select name="order_id" class="form-select" required>
-                                {% for order in orders %}
-                                    <option value="{{ order.id }}"
-                                        {% if delivery and delivery.order_id == order.id %}selected{% endif %}>
-                                        Order #{{ order.id }} - {{ order.customer.username }}
-                                    </option>
-                                {% endfor %}
+                                {% if orders %}
+                                    <option value="" disabled selected>Choose an order</option>
+                                    {% for order in orders %}
+                                        <option value="{{ order.id }}"
+                                            {% if delivery and delivery.order_id == order.id %}selected{% endif %}>
+                                            Order #{{ order.id }} - {{ order.customer.username }}
+                                        </option>
+                                    {% endfor %}
+                                {% else %}
+                                    <option value="" disabled selected>No orders available for delivery</option>
+                                {% endif %}
                             </select>
                         </div>
 

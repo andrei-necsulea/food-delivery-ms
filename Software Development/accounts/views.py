@@ -3,7 +3,7 @@ from django.contrib.auth import login, logout
 from django.contrib.auth.views import LoginView
 from django.urls import reverse_lazy
 from django.contrib import messages
-from .forms import ClientDriverRegistrationForm, AdminManagerCreationForm
+from .forms import ClientDriverRegistrationForm, AdminManagerCreationForm, UserProfileForm
 from .decorators import role_required
 
 
@@ -57,6 +57,28 @@ def create_admin_user_view(request):
         form = AdminManagerCreationForm()
 
     return render(request, 'accounts/create_admin_user.html', {'form': form})
+
+
+def profile_view(request):
+    """View user profile"""
+    user = request.user
+    return render(request, 'accounts/profile.html', {'user': user})
+
+
+def update_profile_view(request):
+    """Update user profile"""
+    if request.method == 'POST':
+        form = UserProfileForm(request.POST, request.FILES, instance=request.user)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Your profile has been updated successfully!')
+            return redirect('profile')
+        else:
+            messages.error(request, 'Please correct the errors below.')
+    else:
+        form = UserProfileForm(instance=request.user)
+
+    return render(request, 'accounts/update_profile.html', {'form': form})
 
 
 def logout_view(request):

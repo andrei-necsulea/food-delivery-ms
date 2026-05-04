@@ -93,25 +93,30 @@ def order_update(request, pk):
     })
 
 
-@role_required(['admin', 'client'])
-def order_delete(request, pk):
-    if request.user.role == 'admin':
-        order = get_object_or_404(Order, pk=pk)
-    else:
-        order = get_object_or_404(Order, pk=pk, customer=request.user)
+@role_required(['client'])
+def order_cancel(request, pk):
+    order = get_object_or_404(Order, pk=pk, customer=request.user)
 
-        if order.status != Order.STATUS_CREATED:
-            messages.error(request, "You can only cancel orders that are still in 'created' status.")
-            return HttpResponseForbidden("You can only cancel orders that are still in 'created' status.")
+    if order.status != Order.STATUS_CREATED:
+        messages.error(request, "You can only cancel orders that are still in 'created' status.")
+        return HttpResponseForbidden("You can only cancel orders that are still in 'created' status.")
+
+    if request.method == 'POST':
+        order.status = Order.STATUS_CANCELLED
+        order.save()
+        messages.success(request, 'Order cancelled successfully.')
+        return redirect('order_list')
+
+    return render(request, 'orders/order_confirm_cancel.html', {'order': order})
+
+
+@role_required(['admin'])
+def order_delete(request, pk):
+    order = get_object_or_404(Order, pk=pk)
 
     if request.method == 'POST':
         order.delete()
-
-        if request.user.role == 'client':
-            messages.success(request, 'Order cancelled successfully.')
-        else:
-            messages.success(request, 'Order deleted successfully.')
-
+        messages.success(request, 'Order deleted successfully.')
         return redirect('order_list')
 
     return render(request, 'orders/order_confirm_delete.html', {'order': order})

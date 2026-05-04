@@ -1,0 +1,91 @@
+{% extends 'base.html' %}
+
+{% block title %}Reassign Courier - Delivery #{{ delivery.id }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-6">
+        <div class="card content-card">
+            <div class="card-header bg-warning text-dark">
+                <h2 class="card-title mb-0">
+                    <i class="fas fa-exchange-alt"></i> Reassign Courier
+                </h2>
+            </div>
+            <div class="card-body">
+                <div class="mb-4">
+                    <h5>Delivery Details</h5>
+                    <div class="row">
+                        <div class="col-sm-6">
+                            <strong>Delivery ID:</strong> #{{ delivery.id }}
+                        </div>
+                        <div class="col-sm-6">
+                            <strong>Order ID:</strong> #{{ delivery.order.id }}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-sm-6">
+                            <strong>Customer:</strong> {{ delivery.order.customer.username }}
+                        </div>
+                        <div class="col-sm-6">
+                            <strong>Current Status:</strong>
+                            {% if delivery.status == 'assigned' %}
+                                <span class="badge bg-secondary">Assigned</span>
+                            {% elif delivery.status == 'picked_up' %}
+                                <span class="badge bg-info text-dark">Picked Up</span>
+                            {% elif delivery.status == 'on_the_way' %}
+                                <span class="badge bg-primary">On The Way</span>
+                            {% elif delivery.status == 'delivered' %}
+                                <span class="badge bg-success">Delivered</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-12">
+                            <strong>Current Courier:</strong>
+                            {% if delivery.driver %}
+                                {{ delivery.driver.get_full_name|default:delivery.driver.username }}
+                                <small class="text-muted">({{ delivery.driver.username }})</small>
+                            {% else %}
+                                <span class="text-muted">Unassigned</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <hr>
+
+                <form method="post">
+                    {% csrf_token %}
+
+                    <div class="mb-3">
+                        <label for="driver_id" class="form-label">Select New Courier</label>
+                        <select name="driver_id" id="driver_id" class="form-select" required>
+                            <option value="">-- Choose a courier --</option>
+                            {% for driver in drivers %}
+                                <option value="{{ driver.id }}" {% if delivery.driver and delivery.driver.id == driver.id %}selected{% endif %}>
+                                    {{ driver.get_full_name|default:driver.username }} ({{ driver.username }})
+                                    {% if driver.phone_number %}
+                                        - {{ driver.phone_number }}
+                                    {% endif %}
+                                </option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text">
+                            Choose a new courier to assign to this delivery. Leave empty to unassign.
+                        </div>
+                    </div>
+
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{% url 'delivery_list' %}" class="btn btn-outline-secondary me-md-2">
+                            <i class="fas fa-times"></i> Cancel
+                        </a>
+                        <button type="submit" class="btn btn-warning">
+                            <i class="fas fa-exchange-alt"></i> Reassign Courier
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

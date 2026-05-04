@@ -23,6 +23,8 @@ python manage.py runserver
 
 python manage.py migrate (pentru migratii)
 
+python manage.py makemigrations
+
 Pentru golire continut terminal : clear
 
 
@@ -53,3 +55,5 @@ git checkout -b feature/nume-task
 git add .
 git commit -m "Mesaj"
 git push origin feature/nume-task
+
+git pull

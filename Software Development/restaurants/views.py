@@ -3,6 +3,7 @@ from django.db.models import Q, Prefetch
 from django.contrib import messages
 from .models import Restaurant, WorkingHours
 from menu.models import MenuItem
+from orders.models import OrderItem
 from accounts.decorators import role_required
 
 
@@ -106,9 +107,18 @@ def restaurant_update(request, pk):
     return render(request, 'restaurants/restaurant_form.html', {'restaurant': restaurant})
 
 
-@role_required(['admin'])
+@role_required(['admin', 'manager'])
 def restaurant_delete(request, pk):
-    restaurant = get_object_or_404(Restaurant, pk=pk)
+    if request.user.role == 'admin':
+        restaurant = get_object_or_404(Restaurant, pk=pk)
+    else:
+        restaurant = get_object_or_404(Restaurant, pk=pk, manager=request.user)
+
+    # Check if there are any orders with items from this restaurant
+    menu_items = restaurant.menu_items.all()
+    if OrderItem.objects.filter(menu_item__in=menu_items).exists():
+        messages.error(request, 'This restaurant cannot be deleted because it has items in existing orders.')
+        return redirect('restaurant_list')
 
     if request.method == 'POST':
         restaurant.delete()

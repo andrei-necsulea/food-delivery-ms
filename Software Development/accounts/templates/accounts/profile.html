@@ -1,0 +1,101 @@
+{% extends 'base.html' %}
+
+{% block title %}My Profile - FoodDeliveryMS{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card content-card">
+            <div class="card-header bg-primary text-white">
+                <h2 class="card-title mb-0">
+                    <i class="fas fa-user"></i> My Profile
+                </h2>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4 text-center mb-4">
+                        {% if user.profile_picture %}
+                            <img src="{{ user.profile_picture.url }}" alt="Profile Picture" class="img-fluid rounded-circle mb-3" style="max-width: 150px; height: 150px; object-fit: cover;">
+                        {% else %}
+                            <div class="bg-light rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 150px; height: 150px;">
+                                <i class="fas fa-user fa-3x text-muted"></i>
+                            </div>
+                        {% endif %}
+                        <br>
+                        <a href="{% url 'update_profile' %}" class="btn btn-outline-primary btn-sm">
+                            <i class="fas fa-edit"></i> Edit Profile
+                        </a>
+                    </div>
+                    <div class="col-md-8">
+                        <h4 class="mb-4">{{ user.get_full_name|default:user.username }}</h4>
+
+                        <div class="row">
+                            <div class="col-sm-6">
+                                <strong>Username:</strong><br>
+                                {{ user.username }}
+                            </div>
+                            <div class="col-sm-6">
+                                <strong>Email:</strong><br>
+                                {{ user.email }}
+                            </div>
+                        </div>
+
+                        <hr>
+
+                        <div class="row">
+                            <div class="col-sm-6">
+                                <strong>First Name:</strong><br>
+                                {{ user.first_name|default:"Not provided" }}
+                            </div>
+                            <div class="col-sm-6">
+                                <strong>Last Name:</strong><br>
+                                {{ user.last_name|default:"Not provided" }}
+                            </div>
+                        </div>
+
+                        <hr>
+
+                        <div class="row">
+                            <div class="col-sm-6">
+                                <strong>Phone Number:</strong><br>
+                                {{ user.phone_number|default:"Not provided" }}
+                            </div>
+                            <div class="col-sm-6">
+                                <strong>Date of Birth:</strong><br>
+                                {{ user.date_of_birth|date:"M d, Y"|default:"Not provided" }}
+                            </div>
+                        </div>
+
+                        <hr>
+
+                        <div class="row">
+                            <div class="col-12">
+                                <strong>Address:</strong><br>
+                                {{ user.address|linebreaks|default:"Not provided" }}
+                            </div>
+                        </div>
+
+                        <hr>
+
+                        <div class="row">
+                            <div class="col-sm-6">
+                                <strong>Role:</strong><br>
+                                <span class="badge bg-primary">{{ user.get_role_display }}</span>
+                            </div>
+                            <div class="col-sm-6">
+                                <strong>Member Since:</strong><br>
+                                {{ user.date_joined|date:"M d, Y" }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="card-footer text-end">
+                <a href="{% url 'update_profile' %}" class="btn btn-primary">
+                    <i class="fas fa-edit"></i> Update Profile
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
