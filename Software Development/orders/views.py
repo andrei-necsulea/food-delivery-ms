@@ -45,7 +45,7 @@ def order_list(request):
     return render(request, 'orders/order_list.html', {'orders': orders})
 
 
-@role_required(['admin', 'manager'])
+@role_required(['admin', 'manager', 'client'])
 def order_update(request, pk):
     if request.user.role == 'admin':
         order = get_object_or_404(Order, pk=pk)
@@ -57,6 +57,9 @@ def order_update(request, pk):
             order.restaurant_id = request.POST.get('restaurant_id')
             order.total_price = request.POST.get('total_price')
             order.status = request.POST.get('status')
+            order.delivery_address = request.POST.get('delivery_address', '').strip()
+            order.phone_number = request.POST.get('phone_number', '').strip()
+            order.payment_method = request.POST.get('payment_method', Order.PAYMENT_METHOD_CASH)
             order.save()
 
             messages.success(request, 'Order updated successfully.')
@@ -66,8 +69,33 @@ def order_update(request, pk):
             'order': order,
             'customers': customers,
             'restaurants': restaurants,
+            'admin_mode': True,
             'manager_mode': False,
+            'payment_methods': [choice[0] for choice in Order.PAYMENT_METHOD_CHOICES],
             'allowed_statuses': [choice[0] for choice in Order.STATUS_CHOICES],
+        })
+
+    if request.user.role == 'client':
+        order = get_object_or_404(Order, pk=pk, customer=request.user)
+
+        if order.status != Order.STATUS_CREATED:
+            messages.error(request, 'You can only modify an order while it is still in created status.')
+            return HttpResponseForbidden('You can only modify an order while it is still in created status.')
+
+        if request.method == 'POST':
+            order.delivery_address = request.POST.get('delivery_address', '').strip()
+            order.phone_number = request.POST.get('phone_number', '').strip()
+            order.payment_method = request.POST.get('payment_method', Order.PAYMENT_METHOD_CASH)
+            order.save()
+
+            messages.success(request, 'Order updated successfully.')
+            return redirect('order_list')
+
+        return render(request, 'orders/order_form.html', {
+            'order': order,
+            'client_mode': True,
+            'manager_mode': False,
+            'payment_methods': [choice[0] for choice in Order.PAYMENT_METHOD_CHOICES],
         })
 
     order = get_object_or_404(Order, pk=pk, restaurant__manager=request.user)
@@ -245,7 +273,10 @@ def checkout(request):
         customer=request.user,
         restaurant=cart.restaurant,
         total_price=cart.total_price(),
-        status=Order.STATUS_CREATED
+        status=Order.STATUS_CREATED,
+        delivery_address=request.user.address or '',
+        phone_number=request.user.phone_number or '',
+        payment_method=Order.PAYMENT_METHOD_CASH,
     )
 
     for item in cart_items:
