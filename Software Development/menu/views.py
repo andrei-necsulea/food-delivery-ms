@@ -143,9 +143,12 @@ def menu_update(request, pk):
     })
 
 
-@role_required(['admin'])
+@role_required(['admin', 'manager'])
 def menu_delete(request, pk):
-    item = get_object_or_404(MenuItem, pk=pk)
+    if request.user.role == 'admin':
+        item = get_object_or_404(MenuItem, pk=pk)
+    else:
+        item = get_object_or_404(MenuItem, pk=pk, restaurant__manager=request.user)
 
     if OrderItem.objects.filter(menu_item=item).exists():
         messages.error(request, 'This item cannot be deleted because it already exists in an order.')

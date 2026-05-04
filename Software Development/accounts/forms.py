@@ -55,3 +55,31 @@ class AdminManagerCreationForm(UserCreationForm):
         label='Confirm Password',
         widget=forms.PasswordInput(attrs={'class': 'form-control'})
     )
+
+    def save(self, commit=True):
+        user = super().save(commit=False)
+        user.is_staff = True
+        if self.cleaned_data.get('role') == 'admin':
+            user.is_superuser = True
+        else:
+            user.is_superuser = False
+
+        if commit:
+            user.save()
+        return user
+
+
+class UserProfileForm(forms.ModelForm):
+    """Form for updating user profile information"""
+    class Meta:
+        model = User
+        fields = ['first_name', 'last_name', 'email', 'phone_number', 'address', 'date_of_birth', 'profile_picture']
+        widgets = {
+            'first_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'last_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'email': forms.EmailInput(attrs={'class': 'form-control'}),
+            'phone_number': forms.TextInput(attrs={'class': 'form-control'}),
+            'address': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+            'date_of_birth': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'profile_picture': forms.FileInput(attrs={'class': 'form-control'}),
+        }

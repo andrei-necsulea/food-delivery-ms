@@ -63,7 +63,11 @@
                         <select name="status" class="form-select" required>
                             {% for status in allowed_statuses %}
                                 <option value="{{ status }}" {% if order.status == status %}selected{% endif %}>
-                                    {{ status|title|cut:"_" }}
+                                    {% if order and order.status == 'created' and status == 'cancelled' %}
+                                        Rejected
+                                    {% else %}
+                                        {{ status|title|cut:"_" }}
+                                    {% endif %}
                                 </option>
                             {% endfor %}
                         </select>

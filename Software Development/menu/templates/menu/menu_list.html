@@ -92,18 +92,18 @@
     <div class="row g-4">
         {% for item in items %}
             <div class="col-md-6 col-xl-4">
-                <div class="card content-card h-100 overflow-hidden">
+                <div class="card content-card h-100 overflow-hidden{% if not item.is_available %} unavailable-item{% endif %}">
 
                     {% if item.image_url %}
                         <img
                             src="{{ item.image_url }}"
-                            class="card-img-top"
+                            class="card-img-top{% if not item.is_available %} unavailable-image{% endif %}"
                             style="height: 180px; object-fit: cover;"
                             alt="{{ item.name }}"
                         >
                     {% else %}
                         <div
-                            class="bg-light d-flex align-items-center justify-content-center text-muted"
+                            class="bg-light d-flex align-items-center justify-content-center text-muted{% if not item.is_available %} unavailable-placeholder{% endif %}"
                             style="height: 180px;"
                         >
                             <span class="fw-semibold">{{ item.name }}</span>
@@ -165,7 +165,7 @@
                                 </a>
                             {% endif %}
 
-                            {% if user.is_authenticated and user.role == 'admin' %}
+                            {% if user.is_authenticated and user.role == 'admin' or user.is_authenticated and user.role == 'manager' %}
                                 <a href="{% url 'menu_delete' item.id %}" class="btn btn-danger btn-sm">
                                     Delete
                                 </a>

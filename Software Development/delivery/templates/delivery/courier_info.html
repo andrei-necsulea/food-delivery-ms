@@ -1,0 +1,164 @@
+{% extends 'base.html' %}
+
+{% block title %}Courier Info - {{ courier.get_full_name|default:courier.username }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-4">
+        <div class="card content-card">
+            <div class="card-header bg-info text-white">
+                <h2 class="card-title mb-0">
+                    <i class="fas fa-user"></i> Courier Profile
+                </h2>
+            </div>
+            <div class="card-body text-center">
+                {% if courier.profile_picture %}
+                    <img src="{{ courier.profile_picture.url }}" alt="Profile Picture" class="img-fluid rounded-circle mb-3" style="max-width: 120px; height: 120px; object-fit: cover;">
+                {% else %}
+                    <div class="bg-light rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 120px; height: 120px;">
+                        <i class="fas fa-user fa-3x text-muted"></i>
+                    </div>
+                {% endif %}
+
+                <h4>{{ courier.get_full_name|default:courier.username }}</h4>
+                <p class="text-muted">@{{ courier.username }}</p>
+
+                <div class="row text-start mt-4">
+                    <div class="col-12 mb-2">
+                        <strong><i class="fas fa-envelope"></i> Email:</strong><br>
+                        {{ courier.email }}
+                    </div>
+                    {% if courier.phone_number %}
+                    <div class="col-12 mb-2">
+                        <strong><i class="fas fa-phone"></i> Phone:</strong><br>
+                        {{ courier.phone_number }}
+                    </div>
+                    {% endif %}
+                    {% if courier.date_of_birth %}
+                    <div class="col-12 mb-2">
+                        <strong><i class="fas fa-birthday-cake"></i> Date of Birth:</strong><br>
+                        {{ courier.date_of_birth|date:"M d, Y" }}
+                    </div>
+                    {% endif %}
+                    {% if courier.address %}
+                    <div class="col-12 mb-2">
+                        <strong><i class="fas fa-map-marker-alt"></i> Address:</strong><br>
+                        {{ courier.address }}
+                    </div>
+                    {% endif %}
+                    <div class="col-12 mb-2">
+                        <strong><i class="fas fa-calendar-alt"></i> Member Since:</strong><br>
+                        {{ courier.date_joined|date:"M d, Y" }}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-8">
+        <div class="card content-card">
+            <div class="card-header bg-success text-white">
+                <h2 class="card-title mb-0">
+                    <i class="fas fa-chart-bar"></i> Delivery Statistics
+                </h2>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-md-4">
+                        <div class="p-3 bg-light rounded">
+                            <h3 class="text-primary">{{ total_deliveries }}</h3>
+                            <p class="mb-0">Total Deliveries</p>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="p-3 bg-light rounded">
+                            <h3 class="text-success">{{ completed_deliveries }}</h3>
+                            <p class="mb-0">Completed</p>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="p-3 bg-light rounded">
+                            <h3 class="text-warning">{{ active_deliveries }}</h3>
+                            <p class="mb-0">Active</p>
+                        </div>
+                    </div>
+                </div>
+
+                {% if total_deliveries > 0 %}
+                <div class="mt-4">
+                    <h5>Completion Rate</h5>
+                    <div class="progress" style="height: 25px;">
+                        <div class="progress-bar bg-success" role="progressbar"
+                             style="width: {{ completion_rate }}%"
+                             aria-valuenow="{{ completion_rate }}"
+                             aria-valuemin="0" aria-valuemax="100">
+                            {{ completion_rate|floatformat:1 }}%
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        {% if courier.role != 'driver' %}
+        <div class="card content-card mt-4">
+            <div class="card-header bg-primary text-white">
+                <h2 class="card-title mb-0">
+                    <i class="fas fa-list"></i> Recent Deliveries
+                </h2>
+            </div>
+            <div class="card-body">
+                {% if deliveries %}
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>ID</th>
+                                <th>Order</th>
+                                <th>Customer</th>
+                                <th>Restaurant</th>
+                                <th>Status</th>
+                                <th>Date</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for delivery in deliveries %}
+                            <tr>
+                                <td>#{{ delivery.id }}</td>
+                                <td>#{{ delivery.order.id }}</td>
+                                <td>{{ delivery.order.customer.username }}</td>
+                                <td>
+                                    {% if delivery.order.restaurant %}
+                                        {{ delivery.order.restaurant.name }}
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if delivery.status == 'assigned' %}
+                                        <span class="badge bg-secondary">Assigned</span>
+                                    {% elif delivery.status == 'picked_up' %}
+                                        <span class="badge bg-info text-dark">Picked Up</span>
+                                    {% elif delivery.status == 'on_the_way' %}
+                                        <span class="badge bg-primary">On The Way</span>
+                                    {% elif delivery.status == 'delivered' %}
+                                        <span class="badge bg-success">Delivered</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ delivery.created_at|date:"M d, H:i" }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <p class="text-muted">No deliveries found for this courier.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

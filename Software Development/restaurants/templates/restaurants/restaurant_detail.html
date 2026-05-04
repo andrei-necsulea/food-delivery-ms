@@ -64,12 +64,12 @@
     <div class="row g-4">
         {% for item in menu_items %}
             <div class="col-md-6 col-xl-4">
-                <div class="card content-card h-100 overflow-hidden">
+                <div class="card content-card h-100 overflow-hidden{% if not item.is_available %} unavailable-item{% endif %}">
 
                     {% if item.image_url %}
-                        <img src="{{ item.image_url }}" class="card-img-top" style="height: 180px; object-fit: cover;" alt="{{ item.name }}">
+                        <img src="{{ item.image_url }}" class="card-img-top{% if not item.is_available %} unavailable-image{% endif %}" style="height: 180px; object-fit: cover;" alt="{{ item.name }}">
                     {% else %}
-                        <div class="bg-light d-flex align-items-center justify-content-center text-muted" style="height: 180px;">
+                        <div class="bg-light d-flex align-items-center justify-content-center text-muted{% if not item.is_available %} unavailable-placeholder{% endif %}" style="height: 180px;">
                             <span class="fw-semibold">{{ item.name }}</span>
                         </div>
                     {% endif %}

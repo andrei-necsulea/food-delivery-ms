@@ -25,7 +25,7 @@ def delivery_list(request):
 def delivery_create(request):
     deliveries_with_order_ids = Delivery.objects.values_list('order_id', flat=True)
     orders = Order.objects.exclude(id__in=deliveries_with_order_ids).filter(
-        status=Order.STATUS_OUT_FOR_DELIVERY
+        status__in=[Order.STATUS_READY, Order.STATUS_OUT_FOR_DELIVERY]
     )
     drivers = User.objects.filter(role='driver')
 
@@ -64,7 +64,10 @@ def delivery_update(request, pk):
     if request.user.role == 'admin':
         delivery = get_object_or_404(Delivery, pk=pk)
         deliveries_with_order_ids = Delivery.objects.exclude(pk=pk).values_list('order_id', flat=True)
-        orders = Order.objects.exclude(id__in=deliveries_with_order_ids)
+        selectable_orders = Order.objects.exclude(id__in=deliveries_with_order_ids).filter(
+            status__in=[Order.STATUS_READY, Order.STATUS_OUT_FOR_DELIVERY]
+        )
+        orders = (Order.objects.filter(id=delivery.order_id) | selectable_orders).distinct()
         drivers = User.objects.filter(role='driver')
 
         if request.method == 'POST':
@@ -134,3 +137,43 @@ def delivery_delete(request, pk):
         return redirect('delivery_list')
 
     return render(request, 'delivery/delivery_confirm_delete.html', {'delivery': delivery})
+
+
+@role_required(['admin'])
+def delivery_reassign_courier(request, pk):
+    delivery = get_object_or_404(Delivery, pk=pk)
+    drivers = User.objects.filter(role='driver')
+
+    if request.method == 'POST':
+        driver_id = request.POST.get('driver_id')
+        delivery.driver_id = driver_id if driver_id else None
+        delivery.save()
+        messages.success(request, f'Courier reassigned successfully for delivery #{delivery.id}.')
+        return redirect('delivery_list')
+
+    return render(request, 'delivery/delivery_reassign_courier.html', {
+        'delivery': delivery,
+        'drivers': drivers,
+    })
+
+
+@role_required(['admin', 'manager', 'client', 'driver'])
+def courier_info(request, pk):
+    courier = get_object_or_404(User, pk=pk, role='driver')
+    deliveries = Delivery.objects.filter(driver=courier).select_related(
+        'order', 'order__customer', 'order__restaurant'
+    ).order_by('-created_at')[:10]  # Last 10 deliveries
+
+    # Statistics
+    total_deliveries = Delivery.objects.filter(driver=courier).count()
+    completed_deliveries = Delivery.objects.filter(driver=courier, status='delivered').count()
+    active_deliveries = Delivery.objects.filter(driver=courier).exclude(status='delivered').count()
+
+    return render(request, 'delivery/courier_info.html', {
+        'courier': courier,
+        'deliveries': deliveries,
+        'total_deliveries': total_deliveries,
+        'completed_deliveries': completed_deliveries,
+        'active_deliveries': active_deliveries,
+        'completion_rate': (completed_deliveries / total_deliveries * 100) if total_deliveries > 0 else 0,
+    })
