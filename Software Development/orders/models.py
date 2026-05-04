@@ -76,6 +76,23 @@ class Order(models.Model):
         validators=[MinValueValidator(Decimal('0'))]
     )
     status = models.CharField(max_length=30, choices=STATUS_CHOICES, default=STATUS_CREATED)
+    delivery_address = models.CharField(max_length=255, blank=True, null=True)
+    phone_number = models.CharField(max_length=20, blank=True, null=True)
+
+    PAYMENT_METHOD_CASH = 'cash'
+    PAYMENT_METHOD_CARD = 'card'
+    PAYMENT_METHOD_ONLINE = 'online'
+
+    PAYMENT_METHOD_CHOICES = (
+        (PAYMENT_METHOD_CASH, 'Cash'),
+        (PAYMENT_METHOD_CARD, 'Card'),
+        (PAYMENT_METHOD_ONLINE, 'Online'),
+    )
+    payment_method = models.CharField(
+        max_length=20,
+        choices=PAYMENT_METHOD_CHOICES,
+        default=PAYMENT_METHOD_CASH,
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
