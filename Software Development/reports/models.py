@@ -1,10 +1,5 @@
 
 from django.db import models
-from django.db.models import Sum, Count, Avg, Q
-from django.utils import timezone
-from datetime import timedelta
-from orders.models import Order
-from delivery.models import Delivery
 from restaurants.models import Restaurant
 from accounts.models import User
 

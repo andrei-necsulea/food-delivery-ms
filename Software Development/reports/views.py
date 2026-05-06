@@ -2,18 +2,17 @@
 from collections import deque
 from django.conf import settings
 from django.shortcuts import render
-from django.http import JsonResponse, Http404
-from django.db.models import Sum, Count, Avg, Q, F, ExpressionWrapper, DurationField
+from django.http import Http404
+from django.db.models import Sum, Avg, F, ExpressionWrapper, DurationField
 from django.utils import timezone
 from datetime import timedelta
-from django.contrib import messages
 
 from accounts.decorators import role_required
 from orders.models import Order
 from delivery.models import Delivery
 from restaurants.models import Restaurant
 from accounts.models import User
-from .models import DailyAggregation, RestaurantMetrics, DriverMetrics
+from .models import DailyAggregation
 import json
 from decimal import Decimal
 from django.http import HttpResponseBadRequest
