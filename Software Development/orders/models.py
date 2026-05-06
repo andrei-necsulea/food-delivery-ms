@@ -110,6 +110,13 @@ class Order(models.Model):
         }
         return transitions.get(self.status, [])
 
+    def has_delivery(self):
+        try:
+            _ = self.delivery
+            return True
+        except Exception:
+            return False
+
 
 class OrderItem(models.Model):
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='items')

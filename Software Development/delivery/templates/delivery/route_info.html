@@ -1,0 +1,98 @@
+{% extends 'base.html' %}
+
+{% block title %}Order Tracking - #{{ order.id }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-10">
+        <div class="d-flex justify-content-between align-items-center page-header">
+            <div>
+                <h1 class="fw-bold mb-1">Order Tracking</h1>
+                <p class="text-muted mb-0">Track the delivery of order #{{ order.id }}.</p>
+            </div>
+            <a href="{% url 'order_list' %}" class="btn btn-outline-secondary">Back to Orders</a>
+        </div>
+
+        <div class="row g-4">
+            <div class="col-lg-6">
+                <div class="card content-card">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">Order Details</h5>
+                    </div>
+                    <div class="card-body">
+                        <p><strong>Order ID:</strong> #{{ order.id }}</p>
+                        <p><strong>Status:</strong> {{ order.status|title|cut:"_" }}</p>
+                        <p><strong>Restaurant:</strong> {{ order.restaurant.name }}</p>
+                        <p><strong>Delivery Address:</strong> {{ order.delivery_address }}</p>
+                        <p><strong>Total:</strong> {{ order.total_price }} lei</p>
+
+                        {% if delivery %}
+                        <p><strong>Delivery Record:</strong> #{{ delivery.id }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="card content-card mt-4">
+                    <div class="card-header bg-secondary text-white">
+                        <h5 class="mb-0">Route Progress</h5>
+                    </div>
+                    <div class="card-body">
+                        {% if delivery and delivery.driver %}
+                            <div class="mb-3">
+                                <div class="progress" style="height: 20px;">
+                                    {% if delivery.status == 'assigned' %}
+                                        <div class="progress-bar bg-secondary" style="width: 25%"></div>
+                                    {% elif delivery.status == 'picked_up' %}
+                                        <div class="progress-bar bg-info" style="width: 50%"></div>
+                                    {% elif delivery.status == 'on_the_way' %}
+                                        <div class="progress-bar bg-primary" style="width: 75%"></div>
+                                    {% elif delivery.status == 'delivered' %}
+                                        <div class="progress-bar bg-success" style="width: 100%"></div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <ul class="list-group list-group-flush">
+                                <li class="list-group-item">Assigned</li>
+                                <li class="list-group-item">Picked Up</li>
+                                <li class="list-group-item">On The Way</li>
+                                <li class="list-group-item">Delivered</li>
+                            </ul>
+                        {% elif delivery %}
+                            <p class="text-muted">A delivery record exists, but no courier has been assigned yet.</p>
+                        {% else %}
+                            <p class="text-muted">This order has not been assigned to any courier yet.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-6">
+                <div class="card content-card">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0">Courier Information</h5>
+                    </div>
+                    <div class="card-body">
+                        {% if delivery and delivery.driver %}
+                            <p><strong>Name:</strong> {{ delivery.driver.get_full_name|default:delivery.driver.username }}</p>
+                            <p><strong>Phone:</strong> {{ delivery.driver.phone_number|default:'Not provided' }}</p>
+                            <p><strong>Vehicle:</strong> {{ delivery.driver.vehicle_type|default:'Not specified' }}</p>
+                            <p><strong>Plate:</strong> {{ delivery.driver.vehicle_plate|default:'Not specified' }}</p>
+
+                            {% if delivery.current_latitude and delivery.current_longitude %}
+                                <hr>
+                                <p class="mb-2"><strong>Courier Location</strong></p>
+                                <p>{{ delivery.current_latitude }}, {{ delivery.current_longitude }}</p>
+                                <p class="text-muted">Coordinates are updated by the courier.</p>
+                            {% else %}
+                                <p class="text-muted">Courier location is not available yet.</p>
+                            {% endif %}
+                        {% else %}
+                            <p class="text-muted">No courier assigned to this order yet.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

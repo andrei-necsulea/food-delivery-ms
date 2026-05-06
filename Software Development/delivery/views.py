@@ -65,6 +65,21 @@ def take_order(request, order_id):
     })
 
 
+@role_required(['admin', 'driver', 'client'])
+def route_info(request, order_id):
+    order = get_object_or_404(Order, pk=order_id)
+
+    if request.user.role == 'client' and order.customer != request.user:
+        return HttpResponseForbidden('You are not allowed to view this route information.')
+
+    delivery = Delivery.objects.filter(order=order).first()
+
+    return render(request, 'delivery/route_info.html', {
+        'order': order,
+        'delivery': delivery,
+    })
+
+
 @role_required(['admin'])
 def delivery_create(request):
     deliveries_with_order_ids = Delivery.objects.values_list('order_id', flat=True)
@@ -81,7 +96,9 @@ def delivery_create(request):
         delivery = Delivery.objects.create(
             order_id=order_id,
             driver_id=driver_id if driver_id else None,
-            status=status
+            status=status,
+            current_latitude=request.POST.get('current_latitude') or None,
+            current_longitude=request.POST.get('current_longitude') or None,
         )
 
         if delivery.status in [Delivery.STATUS_ASSIGNED, Delivery.STATUS_PICKED_UP, Delivery.STATUS_ON_THE_WAY]:
@@ -128,6 +145,8 @@ def delivery_update(request, pk):
             driver_id = request.POST.get('driver_id')
             delivery.driver_id = driver_id if driver_id else None
             delivery.status = request.POST.get('status')
+            delivery.current_latitude = request.POST.get('current_latitude') or None
+            delivery.current_longitude = request.POST.get('current_longitude') or None
             delivery.save()
 
             if delivery.status in [Delivery.STATUS_ASSIGNED, Delivery.STATUS_PICKED_UP, Delivery.STATUS_ON_THE_WAY]:
@@ -176,6 +195,8 @@ def delivery_update(request, pk):
             return HttpResponseForbidden("Invalid delivery status transition.")
 
         delivery.status = new_status
+        delivery.current_latitude = request.POST.get('current_latitude') or delivery.current_latitude
+        delivery.current_longitude = request.POST.get('current_longitude') or delivery.current_longitude
         delivery.save()
 
         if delivery.status in [Delivery.STATUS_PICKED_UP, Delivery.STATUS_ON_THE_WAY]:

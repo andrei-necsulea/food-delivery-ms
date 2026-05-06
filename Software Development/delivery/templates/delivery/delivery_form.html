@@ -57,6 +57,29 @@
                         </select>
                     </div>
 
+                    <div class="row gx-3">
+                        <div class="col-md-6 mb-4">
+                            <label class="form-label">Current Latitude</label>
+                            <input
+                                type="text"
+                                name="current_latitude"
+                                class="form-control"
+                                value="{% if delivery %}{{ delivery.current_latitude }}{% endif %}"
+                                placeholder="e.g. 44.4268"
+                            >
+                        </div>
+                        <div class="col-md-6 mb-4">
+                            <label class="form-label">Current Longitude</label>
+                            <input
+                                type="text"
+                                name="current_longitude"
+                                class="form-control"
+                                value="{% if delivery %}{{ delivery.current_longitude }}{% endif %}"
+                                placeholder="e.g. 26.1025"
+                            >
+                        </div>
+                    </div>
+
                     <div class="d-flex gap-2">
                         <button type="submit" class="btn btn-primary">Save</button>
                         <a href="{% url 'delivery_list' %}" class="btn btn-outline-secondary">Cancel</a>

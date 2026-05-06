@@ -96,6 +96,13 @@
                                     <a href="{% url 'order_cancel' order.id %}" class="btn btn-sm btn-danger">
                                         Cancel
                                     </a>
+                                {% elif order.status != 'cancelled' %}
+                                    <a href="{% url 'route_info' order.id %}" class="btn btn-sm btn-primary me-1">
+                                        Track
+                                    </a>
+                                    <a href="{% url 'order_cancel' order.id %}" class="btn btn-sm btn-danger">
+                                        Cancel
+                                    </a>
                                 {% endif %}
                             {% endif %}
                         </td>
