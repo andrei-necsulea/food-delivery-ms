@@ -1,7 +1,7 @@
 
 from django.shortcuts import render
 from django.http import JsonResponse
-from django.db.models import Sum, Count, Avg, Q, F
+from django.db.models import Sum, Count, Avg, Q, F, ExpressionWrapper, DurationField
 from django.utils import timezone
 from datetime import timedelta
 from django.contrib import messages
@@ -21,6 +21,16 @@ def serialize_decimal(obj):
     if isinstance(obj, Decimal):
         return float(obj)
     raise TypeError(f"Type {type(obj)} not serializable")
+
+
+def format_duration_hhmm(duration):
+    if not duration:
+        return '-'
+
+    total_seconds = int(duration.total_seconds())
+    hours, remainder = divmod(total_seconds, 3600)
+    minutes, _ = divmod(remainder, 60)
+    return f"{hours}h {minutes}m"
 
 
 @role_required(['admin'])
@@ -73,9 +83,15 @@ def driver_performance_report(request):
         total = Delivery.objects.filter(driver=driver).count()
         completed = Delivery.objects.filter(driver=driver, status='delivered').count()
         failed = Delivery.objects.filter(driver=driver, status__in=['cancelled', 'failed']).count()
-        avg_time = Delivery.objects.filter(driver=driver, status='delivered').aggregate(
-            Avg('created_at')
-        )['created_at__avg'] or 0
+        avg_duration = Delivery.objects.filter(
+            driver=driver,
+            status='delivered',
+            completed_at__isnull=False,
+        ).aggregate(
+            avg_delivery_duration=Avg(
+                ExpressionWrapper(F('completed_at') - F('created_at'), output_field=DurationField())
+            )
+        )['avg_delivery_duration']
 
         driver_stats.append({
             'driver': driver,
@@ -83,7 +99,7 @@ def driver_performance_report(request):
             'completed': completed,
             'failed': failed,
             'success_rate': (completed / total * 100) if total > 0 else 0,
-            'avg_time': avg_time,
+            'avg_duration_display': format_duration_hhmm(avg_duration),
         })
 
     # Sort by success rate

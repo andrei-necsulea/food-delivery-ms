@@ -36,6 +36,7 @@ class Delivery(models.Model):
     # Optional location code (e.g., plus code or external place id)
     location_code = models.CharField(max_length=128, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    completed_at = models.DateTimeField(blank=True, null=True)
 
     def __str__(self):
         return f"Delivery #{self.id} - Order {self.order.id}"

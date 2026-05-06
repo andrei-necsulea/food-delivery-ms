@@ -21,6 +21,7 @@
                         <th>Total Deliveries</th>
                         <th>Completed</th>
                         <th>Failed</th>
+                        <th>Avg Delivery Time</th>
                         <th>Success Rate</th>
                     </tr>
                 </thead>
@@ -31,6 +32,7 @@
                         <td>{{ driver.total_deliveries }}</td>
                         <td><span class="badge bg-success">{{ driver.completed }}</span></td>
                         <td><span class="badge bg-danger">{{ driver.failed }}</span></td>
+                        <td>{{ driver.avg_duration_display }}</td>
                         <td>
                             <div class="progress">
                                 <div class="progress-bar bg-success" role="progressbar" 
@@ -42,7 +44,7 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="5" class="text-center">No drivers found</td>
+                        <td colspan="6" class="text-center">No drivers found</td>
                     </tr>
                     {% endfor %}
                 </tbody>

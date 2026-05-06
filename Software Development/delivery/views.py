@@ -1,6 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponseForbidden, JsonResponse
 from django.contrib import messages
+from django.utils import timezone
 from .models import Delivery
 from orders.models import Order
 from accounts.models import User
@@ -187,6 +188,7 @@ def driver_update_status(request, delivery_id):
             return JsonResponse({'error': 'Invalid delivery status transition.'}, status=400)
 
         delivery.status = new_status
+        delivery.completed_at = timezone.now() if new_status == Delivery.STATUS_DELIVERED else None
         delivery.save()
 
         # Update order status
@@ -243,6 +245,7 @@ def delivery_create(request):
             current_longitude=request.POST.get('current_longitude') or None,
             location_label=request.POST.get('location_label') or None,
             location_code=request.POST.get('location_code') or None,
+            completed_at=timezone.now() if status == Delivery.STATUS_DELIVERED else None,
         )
 
         if delivery.status in [Delivery.STATUS_ASSIGNED, Delivery.STATUS_PICKED_UP, Delivery.STATUS_ON_THE_WAY]:
@@ -288,6 +291,7 @@ def delivery_update(request, pk):
                 return HttpResponseForbidden("Invalid delivery status transition.")
 
             delivery.status = new_status
+            delivery.completed_at = timezone.now() if new_status == Delivery.STATUS_DELIVERED else None
             delivery.save()
 
             if delivery.status in [Delivery.STATUS_PICKED_UP, Delivery.STATUS_ON_THE_WAY]:
@@ -341,6 +345,7 @@ def delivery_update(request, pk):
             delivery.current_longitude = request.POST.get('current_longitude') or None
             delivery.location_label = request.POST.get('location_label') or None
             delivery.location_code = request.POST.get('location_code') or None
+            delivery.completed_at = timezone.now() if delivery.status == Delivery.STATUS_DELIVERED else None
             delivery.save()
 
             if delivery.status in [Delivery.STATUS_ASSIGNED, Delivery.STATUS_PICKED_UP, Delivery.STATUS_ON_THE_WAY]:
