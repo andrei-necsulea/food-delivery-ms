@@ -87,7 +87,10 @@
                                 <p class="text-muted">Courier location is not available yet.</p>
                             {% endif %}
 
-                            <div id="routeMap" style="height: 360px; border-radius: 16px; overflow: hidden; margin-top: 1rem"></div>
+                            <div id="routeMap" style="height: 360px; border-radius: 16px; overflow: hidden; margin-top: 1rem"
+                                 data-initial-lat="{% if delivery and delivery.current_latitude %}{{ delivery.current_latitude }}{% endif %}"
+                                 data-initial-lng="{% if delivery and delivery.current_longitude %}{{ delivery.current_longitude }}{% endif %}">
+                            </div>
                             <p class="text-muted mt-3">Click on the map to select a courier location. The route shown is a simulation from KFC Electroputere Mall Craiova to Str. Ștefan cel Mare nr 71, Craiova.</p>
 
                             {% if user.role == 'driver' and delivery.driver == user %}
@@ -195,10 +198,14 @@
                 });
         }
 
-        {% if delivery and delivery.current_latitude and delivery.current_longitude %}
-            addCourierMarker({{ delivery.current_latitude }}, {{ delivery.current_longitude }}, 'Courier current location');
+        var mapElement = document.getElementById('routeMap');
+        var initialLat = mapElement.dataset.initialLat;
+        var initialLng = mapElement.dataset.initialLng;
+
+        if (initialLat && initialLng) {
+            addCourierMarker(parseFloat(initialLat), parseFloat(initialLng), 'Courier current location');
             setInterval(fetchRouteData, 10000);
-        {% endif %}
+        }
 
         function chooseLocation(latlng) {
             if (selectedMarker) {
@@ -229,34 +236,38 @@
             });
 
             locateButton.addEventListener('click', function () {
-            if (!navigator.geolocation) {
-                statusElement.classList.remove('d-none', 'alert-secondary');
-                statusElement.classList.add('alert-danger');
-                statusElement.textContent = 'Geolocation is not supported by your browser.';
-                return;
-            }
+                if (!navigator.geolocation) {
+                    statusElement.classList.remove('d-none', 'alert-secondary');
+                    statusElement.classList.add('alert-danger');
+                    statusElement.textContent = 'Geolocation is not supported by your browser.';
+                    return;
+                }
 
-            statusElement.classList.remove('d-none', 'alert-secondary', 'alert-danger');
-            statusElement.classList.add('alert-info');
-            statusElement.textContent = 'Detecting your current location...';
+                statusElement.classList.remove('d-none', 'alert-secondary', 'alert-danger');
+                statusElement.classList.add('alert-info');
+                statusElement.textContent = 'Detecting your current location...';
 
-            navigator.geolocation.getCurrentPosition(function (position) {
-                var latlng = {
-                    lat: position.coords.latitude,
-                    lng: position.coords.longitude
-                };
-                chooseLocation(latlng);
-                map.panTo(latlng);
-            }, function (error) {
-                statusElement.classList.remove('alert-info');
-                statusElement.classList.add('alert-danger');
-                statusElement.textContent = 'Unable to determine location. Please allow location access and try again.';
-            }, {
-                enableHighAccuracy: true,
-                timeout: 15000,
-                maximumAge: 10000
+                navigator.geolocation.getCurrentPosition(function (position) {
+                    var latlng = {
+                        lat: position.coords.latitude,
+                        lng: position.coords.longitude
+                    };
+                    chooseLocation(latlng);
+                    map.panTo(latlng);
+                }, function (error) {
+                    statusElement.classList.remove('alert-info');
+                    statusElement.classList.add('alert-danger');
+                    statusElement.textContent = 'Unable to determine location. Please allow location access and try again.';
+                }, {
+                    enableHighAccuracy: true,
+                    timeout: 15000,
+                    maximumAge: 10000
+                });
             });
-        });
+        }
     });
+</script>
+{% endblock %}
+
 </script>
 {% endblock %}
