@@ -1,0 +1,82 @@
+{% extends 'base.html' %}
+
+{% block title %}Delivery Details{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card content-card">
+            <div class="card-body p-4">
+                <h1 class="h3 fw-bold mb-4">Delivery Details</h1>
+
+                <!-- Cart Summary -->
+                <div class="card mb-4 border-light">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0">Order Summary</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-sm mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Item</th>
+                                        <th class="text-center">Qty</th>
+                                        <th class="text-end">Price</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in cart_items %}
+                                        <tr>
+                                            <td>{{ item.menu_item.name }}</td>
+                                            <td class="text-center">{{ item.quantity }}</td>
+                                            <td class="text-end">{{ item.subtotal }}</td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        <hr class="my-3">
+                        <div class="d-flex justify-content-between">
+                            <strong>Total:</strong>
+                            <strong class="text-primary">{{ cart_total }} lei</strong>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Delivery Details Form -->
+                <form method="post">
+                    {% csrf_token %}
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Delivery Address <span class="text-danger">*</span></label>
+                        <textarea
+                            name="delivery_address"
+                            class="form-control"
+                            rows="3"
+                            placeholder="Enter your delivery address"
+                            required>{{ delivery_address }}</textarea>
+                        <small class="text-muted">Please provide a complete address including street, number, and building details.</small>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label fw-semibold">Phone Number <span class="text-danger">*</span></label>
+                        <input
+                            type="text"
+                            name="phone_number"
+                            class="form-control"
+                            placeholder="Enter your phone number"
+                            value="{{ phone_number }}"
+                            required>
+                        <small class="text-muted">We'll use this number to contact you about your delivery.</small>
+                    </div>
+
+                    <div class="d-flex gap-3">
+                        <a href="{% url 'cart_detail' %}" class="btn btn-outline-secondary">Back to Cart</a>
+                        <button type="submit" class="btn btn-success btn-lg flex-grow-1">Proceed to Checkout</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -84,8 +84,7 @@ def order_update(request, pk):
             return HttpResponseForbidden('You can only modify an order while it is still in created status.')
 
         if request.method == 'POST':
-            order.delivery_address = request.POST.get('delivery_address', '').strip()
-            order.phone_number = request.POST.get('phone_number', '').strip()
+            # Only allow payment method to be changed - address and phone cannot be modified after checkout
             order.payment_method = request.POST.get('payment_method', Order.PAYMENT_METHOD_CASH)
             order.save()
 
@@ -104,6 +103,7 @@ def order_update(request, pk):
             'order': order,
             'client_mode': True,
             'manager_mode': False,
+            'client_readonly_mode': True,
             'payment_methods': [choice[0] for choice in Order.PAYMENT_METHOD_CHOICES],
         })
 
@@ -289,6 +289,55 @@ def clear_cart(request):
 
 
 @role_required(['client'])
+def delivery_details(request):
+    cart = get_object_or_404(Cart, customer=request.user)
+    cart_items = cart.items.select_related('menu_item').all()
+
+    if not cart_items.exists():
+        messages.error(request, 'Your cart is empty.')
+        return redirect('cart_detail')
+
+    if request.method == 'POST':
+        delivery_address = request.POST.get('delivery_address', '').strip()
+        phone_number = request.POST.get('phone_number', '').strip()
+
+        if not delivery_address:
+            messages.error(request, 'Delivery address is required.')
+            return render(request, 'orders/delivery_details.html', {
+                'cart': cart,
+                'cart_items': cart_items,
+                'cart_total': cart.total_price(),
+                'delivery_address': delivery_address,
+                'phone_number': phone_number,
+            })
+
+        if not phone_number:
+            messages.error(request, 'Phone number is required.')
+            return render(request, 'orders/delivery_details.html', {
+                'cart': cart,
+                'cart_items': cart_items,
+                'cart_total': cart.total_price(),
+                'delivery_address': delivery_address,
+                'phone_number': phone_number,
+            })
+
+        # Store delivery details in session
+        request.session['delivery_address'] = delivery_address
+        request.session['phone_number'] = phone_number
+        request.session.modified = True
+
+        return redirect('checkout')
+
+    return render(request, 'orders/delivery_details.html', {
+        'cart': cart,
+        'cart_items': cart_items,
+        'cart_total': cart.total_price(),
+        'delivery_address': request.user.address or '',
+        'phone_number': request.user.phone_number or '',
+    })
+
+
+@role_required(['client'])
 def checkout(request):
     cart = get_object_or_404(Cart, customer=request.user)
     cart_items = cart.items.select_related('menu_item').all()
@@ -297,13 +346,21 @@ def checkout(request):
         messages.error(request, 'Your cart is empty.')
         return redirect('cart_detail')
 
+    # Get delivery details from session
+    delivery_address = request.session.get('delivery_address', '')
+    phone_number = request.session.get('phone_number', '')
+
+    if not delivery_address or not phone_number:
+        messages.error(request, 'Please provide delivery details before checkout.')
+        return redirect('delivery_details')
+
     order = Order.objects.create(
         customer=request.user,
         restaurant=cart.restaurant,
         total_price=cart.total_price(),
         status=Order.STATUS_CREATED,
-        delivery_address=request.user.address or '',
-        phone_number=request.user.phone_number or '',
+        delivery_address=delivery_address,
+        phone_number=phone_number,
         payment_method=Order.PAYMENT_METHOD_CASH,
     )
 
@@ -318,6 +375,13 @@ def checkout(request):
     cart.items.all().delete()
     cart.restaurant = None
     cart.save()
+
+    # Clear delivery details from session
+    if 'delivery_address' in request.session:
+        del request.session['delivery_address']
+    if 'phone_number' in request.session:
+        del request.session['phone_number']
+    request.session.modified = True
 
     # Create notification for customer about new order
     Notification.create_order_notification(

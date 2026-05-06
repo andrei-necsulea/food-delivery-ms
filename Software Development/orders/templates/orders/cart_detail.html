@@ -69,10 +69,7 @@
             <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
                 <h4 class="mb-0">Total: <span class="text-primary">{{ cart_total }}</span></h4>
 
-                <form method="post" action="{% url 'checkout' %}">
-                    {% csrf_token %}
-                    <button type="submit" class="btn btn-success btn-lg">Checkout</button>
-                </form>
+                <a href="{% url 'delivery_details' %}" class="btn btn-success btn-lg">Continue to Delivery Details</a>
             </div>
         {% else %}
             <div class="text-center py-5">
