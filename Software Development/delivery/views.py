@@ -77,20 +77,30 @@ def route_info(request, order_id):
     if request.method == 'POST':
         if request.user.role != 'driver' or not delivery or delivery.driver != request.user:
             return HttpResponseForbidden('You are not allowed to update this route information.')
-
         latitude = request.POST.get('current_latitude')
         longitude = request.POST.get('current_longitude')
+        location_label = request.POST.get('location_label')
+        location_code = request.POST.get('location_code')
 
         if latitude and longitude:
             try:
                 delivery.current_latitude = float(latitude)
                 delivery.current_longitude = float(longitude)
-                delivery.save()
-                messages.success(request, 'Courier location updated successfully.')
             except (ValueError, TypeError):
                 messages.error(request, 'Invalid coordinates provided. Please try again.')
-        else:
-            messages.error(request, 'Location update failed. Please allow browser location access or enter coordinates manually.')
+
+        # Save human-readable label/code if provided (reverse-geocoded)
+        if location_label:
+            delivery.location_label = location_label
+        if location_code:
+            delivery.location_code = location_code
+
+        # At minimum, allow saving label even if coords missing
+        try:
+            delivery.save()
+            messages.success(request, 'Courier location updated successfully.')
+        except Exception:
+            messages.error(request, 'Location update failed. Please try again.')
 
         return redirect('route_info', order_id=order.id)
 
@@ -117,6 +127,8 @@ def route_data(request, order_id):
         'status': delivery.status,
         'current_latitude': delivery.current_latitude,
         'current_longitude': delivery.current_longitude,
+        'location_label': delivery.location_label,
+        'location_code': delivery.location_code,
         'driver': {
             'id': delivery.driver.id if delivery.driver else None,
             'username': delivery.driver.username if delivery.driver else None,
@@ -131,19 +143,30 @@ def update_courier_location(request, delivery_id):
     if request.method == 'POST':
         latitude = request.POST.get('latitude')
         longitude = request.POST.get('longitude')
+        location_label = request.POST.get('location_label')
+        location_code = request.POST.get('location_code')
 
-        if not latitude or not longitude:
-            return JsonResponse({'error': 'Latitude and longitude are required.'}, status=400)
+        # Accept updates that include a human-friendly label even if coordinates missing
+        if not (latitude or location_label):
+            return JsonResponse({'error': 'Latitude or location label is required.'}, status=400)
 
         try:
-            delivery.current_latitude = float(latitude)
-            delivery.current_longitude = float(longitude)
+            if latitude:
+                delivery.current_latitude = float(latitude)
+            if longitude:
+                delivery.current_longitude = float(longitude)
+            if location_label:
+                delivery.location_label = location_label
+            if location_code:
+                delivery.location_code = location_code
             delivery.save()
             return JsonResponse({
                 'success': True,
                 'message': 'Location updated successfully.',
-                'current_latitude': float(delivery.current_latitude),
-                'current_longitude': float(delivery.current_longitude),
+                'current_latitude': float(delivery.current_latitude) if delivery.current_latitude is not None else None,
+                'current_longitude': float(delivery.current_longitude) if delivery.current_longitude is not None else None,
+                'location_label': delivery.location_label,
+                'location_code': delivery.location_code,
             })
         except (ValueError, TypeError):
             return JsonResponse({'error': 'Invalid coordinates provided.'}, status=400)
@@ -170,6 +193,8 @@ def delivery_create(request):
             status=status,
             current_latitude=request.POST.get('current_latitude') or None,
             current_longitude=request.POST.get('current_longitude') or None,
+            location_label=request.POST.get('location_label') or None,
+            location_code=request.POST.get('location_code') or None,
         )
 
         if delivery.status in [Delivery.STATUS_ASSIGNED, Delivery.STATUS_PICKED_UP, Delivery.STATUS_ON_THE_WAY]:
@@ -218,6 +243,8 @@ def delivery_update(request, pk):
             delivery.status = request.POST.get('status')
             delivery.current_latitude = request.POST.get('current_latitude') or None
             delivery.current_longitude = request.POST.get('current_longitude') or None
+            delivery.location_label = request.POST.get('location_label') or None
+            delivery.location_code = request.POST.get('location_code') or None
             delivery.save()
 
             if delivery.status in [Delivery.STATUS_ASSIGNED, Delivery.STATUS_PICKED_UP, Delivery.STATUS_ON_THE_WAY]:
@@ -260,6 +287,9 @@ def delivery_update(request, pk):
     if request.method == 'POST':
         new_status = request.POST.get('status')
         allowed_statuses = delivery.get_allowed_next_statuses_for_driver()
+        # allow the driver to keep the current status (so they can update coords without changing status)
+        if delivery.status not in allowed_statuses:
+            allowed_statuses = [delivery.status] + allowed_statuses
 
         if new_status not in allowed_statuses:
             messages.error(request, 'Invalid delivery status transition.')
@@ -299,7 +329,7 @@ def delivery_update(request, pk):
     return render(request, 'delivery/delivery_form.html', {
         'delivery': delivery,
         'driver_mode': True,
-        'allowed_statuses': delivery.get_allowed_next_statuses_for_driver(),
+        'allowed_statuses': ([delivery.status] + delivery.get_allowed_next_statuses_for_driver()) if delivery else [],
     })
 
 

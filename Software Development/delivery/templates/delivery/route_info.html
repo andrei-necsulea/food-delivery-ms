@@ -82,7 +82,11 @@
                             <hr>
                             <p class="mb-2"><strong>Courier Location</strong></p>
                             {% if delivery.current_latitude and delivery.current_longitude %}
-                                <p>{{ delivery.current_latitude }}, {{ delivery.current_longitude }}</p>
+                                {% if delivery.location_label %}
+                                    <p>{{ delivery.location_label }}</p>
+                                {% else %}
+                                    <p>{{ delivery.current_latitude }}, {{ delivery.current_longitude }}</p>
+                                {% endif %}
                             {% else %}
                                 <p class="text-muted">Courier location is not available yet.</p>
                             {% endif %}
@@ -104,6 +108,8 @@
                                     </div>
                                     <input type="hidden" name="latitude" id="currentLatitude">
                                     <input type="hidden" name="longitude" id="currentLongitude">
+                                    <input type="hidden" name="location_label" id="locationLabel" value="{% if delivery %}{{ delivery.location_label }}{% endif %}">
+                                    <input type="hidden" name="location_code" id="locationCode" value="{% if delivery %}{{ delivery.location_code }}{% endif %}">
                                     <input type="hidden" name="delivery_id" id="deliveryId" value="{{ delivery.id }}">
                                     <div class="alert alert-secondary d-none" id="geolocationStatus" role="status"></div>
                                     <button type="submit" class="btn btn-success" id="submitLocation" disabled>
@@ -228,7 +234,17 @@
             statusElement.classList.remove('d-none', 'alert-danger');
             statusElement.classList.add('alert-success');
             statusElement.textContent = 'Location selected on map. Click Send location update to save it.';
-            selectedMarker.setPopupContent('Selected location \n' + latitudeInput.value + ', ' + longitudeInput.value);
+            // perform reverse geocoding to get a human-friendly label
+            fetch('https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=' + latlng.lat + '&lon=' + latlng.lng)
+                .then(function(resp) { return resp.json(); })
+                .then(function(data) {
+                    var label = data && data.display_name ? data.display_name : (latitudeInput.value + ', ' + longitudeInput.value);
+                    document.getElementById('locationLabel').value = label;
+                    selectedMarker.setPopupContent('Selected location \n' + label);
+                })
+                .catch(function() {
+                    selectedMarker.setPopupContent('Selected location \n' + latitudeInput.value + ', ' + longitudeInput.value);
+                });
         }
 
         if (locateButton) {
@@ -290,6 +306,8 @@
                 var formData = new FormData();
                 formData.append('latitude', latitude);
                 formData.append('longitude', longitude);
+                formData.append('location_label', document.getElementById('locationLabel').value || '');
+                formData.append('location_code', document.getElementById('locationCode').value || '');
                 formData.append('csrfmiddlewaretoken', csrfToken);
 
                 fetch('/delivery/update-location/' + deliveryId + '/', {

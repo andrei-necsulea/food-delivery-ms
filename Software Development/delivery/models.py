@@ -31,6 +31,10 @@ class Delivery(models.Model):
     )
     current_latitude = models.DecimalField(max_digits=9, decimal_places=6, blank=True, null=True)
     current_longitude = models.DecimalField(max_digits=9, decimal_places=6, blank=True, null=True)
+    # Human-friendly label for location (reverse-geocoded address or place name)
+    location_label = models.CharField(max_length=255, blank=True, null=True)
+    # Optional location code (e.g., plus code or external place id)
+    location_code = models.CharField(max_length=128, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
