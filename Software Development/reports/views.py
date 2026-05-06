@@ -1,4 +1,6 @@
 
+from collections import deque
+from django.conf import settings
 from django.shortcuts import render
 from django.http import JsonResponse
 from django.db.models import Sum, Count, Avg, Q, F, ExpressionWrapper, DurationField
@@ -298,5 +300,40 @@ def delivery_analytics(request):
         'daily_counts': json.dumps(daily_completed),
         'status_labels': json.dumps(status_labels),
         'status_counts': json.dumps(status_counts),
+    })
+
+
+def _read_last_lines(file_path, line_count):
+    with open(file_path, 'r', encoding='utf-8', errors='replace') as log_file:
+        return list(deque(log_file, maxlen=line_count))
+
+
+@role_required(['admin'])
+def system_logs(request):
+    log_files = {
+        'app': 'app.log',
+        'error': 'error.log',
+    }
+
+    selected_log = request.GET.get('log', 'app')
+    if selected_log not in log_files:
+        selected_log = 'app'
+
+    try:
+        selected_lines = int(request.GET.get('lines', 200))
+    except (TypeError, ValueError):
+        selected_lines = 200
+
+    selected_lines = max(50, min(1000, selected_lines))
+
+    log_path = settings.BASE_DIR / 'logs' / log_files[selected_log]
+    log_exists = log_path.exists()
+    log_content = ''.join(_read_last_lines(log_path, selected_lines)) if log_exists else ''
+
+    return render(request, 'reports/system_logs.html', {
+        'selected_log': selected_log,
+        'selected_lines': selected_lines,
+        'log_exists': log_exists,
+        'log_content': log_content,
     })
 
