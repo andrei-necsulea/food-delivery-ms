@@ -79,8 +79,26 @@ def order_update(request, pk):
     if request.user.role == 'client':
         order = get_object_or_404(Order, pk=pk, customer=request.user)
 
-        messages.error(request, 'You cannot modify an order after checkout.')
-        return redirect('order_list')
+        # Allow clients to modify orders only while they are in 'created' status
+        if order.status != Order.STATUS_CREATED:
+            messages.error(request, 'You cannot modify an order after it has been accepted or processed.')
+            return redirect('order_list')
+
+        if request.method == 'POST':
+            order.delivery_address = request.POST.get('delivery_address', '').strip()
+            order.phone_number = request.POST.get('phone_number', '').strip()
+            order.payment_method = request.POST.get('payment_method', Order.PAYMENT_METHOD_CASH)
+            order.save()
+
+            messages.success(request, 'Your order has been updated successfully.')
+            return redirect('order_list')
+
+        return render(request, 'orders/order_form.html', {
+            'order': order,
+            'client_mode': True,
+            'client_readonly_mode': False,
+            'payment_methods': [choice[0] for choice in Order.PAYMENT_METHOD_CHOICES],
+        })
 
     order = get_object_or_404(Order, pk=pk, restaurant__manager=request.user)
 

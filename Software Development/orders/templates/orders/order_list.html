@@ -93,6 +93,7 @@
 
                             {% elif user.role == 'client' %}
                                 {% if order.status == 'created' %}
+                                    <a href="{% url 'order_update' order.id %}" class="btn btn-sm btn-warning me-1">Modify</a>
                                     <a href="{% url 'order_cancel' order.id %}" class="btn btn-sm btn-danger">
                                         Cancel
                                     </a>
