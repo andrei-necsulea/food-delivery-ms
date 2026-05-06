@@ -16,6 +16,9 @@ from accounts.models import User
 from .models import DailyAggregation, RestaurantMetrics, DriverMetrics
 import json
 from decimal import Decimal
+from django.http import HttpResponseBadRequest
+from . import exporters
+from datetime import datetime
 
 
 def serialize_decimal(obj):
@@ -118,6 +121,163 @@ def driver_performance_report(request):
         'chart_completed': json.dumps(completed_counts),
         'chart_failed': json.dumps(failed_counts),
     })
+
+
+@role_required(['admin'])
+def export_driver_performance(request):
+    fmt = request.GET.get('format', 'csv').lower()
+    drivers = User.objects.filter(role='driver')
+
+    headers = ['Driver', 'Total Deliveries', 'Completed', 'Failed', 'Success Rate (%)', 'Avg Delivery Time']
+    rows = []
+    for driver in drivers:
+        total = Delivery.objects.filter(driver=driver).count()
+        completed = Delivery.objects.filter(driver=driver, status='delivered').count()
+        failed = Delivery.objects.filter(driver=driver, status__in=['cancelled', 'failed']).count()
+        avg_duration = Delivery.objects.filter(
+            driver=driver,
+            status='delivered',
+            completed_at__isnull=False,
+        ).aggregate(
+            avg_delivery_duration=Avg(
+                ExpressionWrapper(F('completed_at') - F('created_at'), output_field=DurationField())
+            )
+        )['avg_delivery_duration']
+
+        rows.append([
+            driver.username,
+            total,
+            completed,
+            failed,
+            round((completed / total * 100), 2) if total > 0 else 0,
+            format_duration_hhmm(avg_duration),
+        ])
+
+    filename = 'driver_performance'
+    if fmt == 'csv':
+        return exporters.export_csv(filename, headers, rows)
+    if fmt in ('xlsx', 'xls'):
+        try:
+            return exporters.export_xlsx(filename, headers, rows)
+        except RuntimeError:
+            return HttpResponseBadRequest('XLSX export requires openpyxl package')
+    return HttpResponseBadRequest('Unsupported format')
+
+
+@role_required(['admin'])
+def export_report(request):
+    """Generic report exporter. Params:
+    - report: driver_performance | restaurant_sales | revenue | orders | deliveries
+    - format: csv|xlsx
+    - start, end: optional YYYY-MM-DD date range
+    """
+    report_name = request.GET.get('report')
+    fmt = request.GET.get('format', 'csv').lower()
+    start_raw = request.GET.get('start')
+    end_raw = request.GET.get('end')
+
+    start_date = None
+    end_date = None
+    try:
+        if start_raw:
+            start_date = datetime.strptime(start_raw, '%Y-%m-%d').date()
+        if end_raw:
+            end_date = datetime.strptime(end_raw, '%Y-%m-%d').date()
+    except ValueError:
+        return HttpResponseBadRequest('Invalid date format, expected YYYY-MM-DD')
+
+    headers = []
+    rows = []
+
+    if report_name == 'driver_performance':
+        headers = ['Driver', 'Total Deliveries', 'Completed', 'Failed', 'Success Rate (%)', 'Avg Delivery Time']
+        drivers = User.objects.filter(role='driver')
+        for driver in drivers:
+            qs = Delivery.objects.filter(driver=driver)
+            if start_date:
+                qs = qs.filter(created_at__date__gte=start_date)
+            if end_date:
+                qs = qs.filter(created_at__date__lte=end_date)
+
+            total = qs.count()
+            completed = qs.filter(status='delivered').count()
+            failed = qs.filter(status__in=['cancelled', 'failed']).count()
+            avg_duration = qs.filter(status='delivered', completed_at__isnull=False).aggregate(
+                avg_delivery_duration=Avg(ExpressionWrapper(F('completed_at') - F('created_at'), output_field=DurationField()))
+            )['avg_delivery_duration']
+
+            rows.append([
+                driver.username, total, completed, failed,
+                round((completed / total * 100), 2) if total > 0 else 0,
+                format_duration_hhmm(avg_duration),
+            ])
+
+    elif report_name == 'restaurant_sales':
+        headers = ['Restaurant', 'Total Orders', 'Total Revenue', 'Avg Order Value']
+        restaurants = Restaurant.objects.all()
+        for restaurant in restaurants:
+            orders_q = Order.objects.filter(restaurant=restaurant)
+            if start_date:
+                orders_q = orders_q.filter(created_at__date__gte=start_date)
+            if end_date:
+                orders_q = orders_q.filter(created_at__date__lte=end_date)
+            total_orders = orders_q.count()
+            total_revenue = orders_q.aggregate(Sum('total_price'))['total_price__sum'] or 0
+            avg_order_value = orders_q.aggregate(Avg('total_price'))['total_price__avg'] or 0
+            rows.append([restaurant.name, total_orders, float(total_revenue), float(avg_order_value)])
+
+    elif report_name == 'revenue':
+        headers = ['Date', 'Orders', 'Revenue']
+        # Build date range for grouping
+        if not start_date or not end_date:
+            # default to last 30 days
+            end_date = end_date or timezone.now().date()
+            start_date = start_date or (end_date - timedelta(days=29))
+
+        current = start_date
+        while current <= end_date:
+            orders_q = Order.objects.filter(created_at__date=current)
+            count = orders_q.count()
+            revenue = orders_q.aggregate(Sum('total_price'))['total_price__sum'] or 0
+            rows.append([str(current), count, float(revenue)])
+            current += timedelta(days=1)
+
+    elif report_name == 'orders':
+        headers = ['Order ID', 'Customer', 'Restaurant', 'Status', 'Total Price', 'Created At']
+        orders_q = Order.objects.all().select_related('customer', 'restaurant')
+        if start_date:
+            orders_q = orders_q.filter(created_at__date__gte=start_date)
+        if end_date:
+            orders_q = orders_q.filter(created_at__date__lte=end_date)
+        for o in orders_q.order_by('-created_at'):
+            rows.append([o.id, o.customer.username if o.customer else None, o.restaurant.name if o.restaurant else None, o.status, float(o.total_price), o.created_at.isoformat()])
+
+    elif report_name == 'deliveries':
+        headers = ['Delivery ID', 'Order ID', 'Driver', 'Status', 'Created At', 'Completed At', 'Duration']
+        qs = Delivery.objects.select_related('driver', 'order')
+        if start_date:
+            qs = qs.filter(created_at__date__gte=start_date)
+        if end_date:
+            qs = qs.filter(created_at__date__lte=end_date)
+        for d in qs.order_by('-created_at'):
+            duration = None
+            if d.completed_at:
+                delta = d.completed_at - d.created_at
+                duration = format_duration_hhmm(delta)
+            rows.append([d.id, d.order.id if d.order else None, d.driver.username if d.driver else None, d.status, d.created_at.isoformat(), d.completed_at.isoformat() if d.completed_at else None, duration])
+
+    else:
+        return HttpResponseBadRequest('Unknown report')
+
+    filename = report_name or 'report'
+    if fmt == 'csv':
+        return exporters.export_csv(filename, headers, rows)
+    if fmt in ('xlsx', 'xls'):
+        try:
+            return exporters.export_xlsx(filename, headers, rows)
+        except RuntimeError:
+            return HttpResponseBadRequest('XLSX export requires openpyxl package')
+    return HttpResponseBadRequest('Unsupported format')
 
 
 @role_required(['admin'])

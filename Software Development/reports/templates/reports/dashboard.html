@@ -73,6 +73,12 @@
             <canvas id="completedChart"></canvas>
         </div>
     </div>
+    <div class="row mt-3">
+        <div class="col-md-6">
+            <a href="{% url 'export_driver_performance' %}?format=csv" class="btn btn-outline-secondary">Export Driver Performance (CSV)</a>
+            <a href="{% url 'export_driver_performance' %}?format=xlsx" class="btn btn-outline-secondary">Export Driver Performance (XLSX)</a>
+        </div>
+    </div>
 
     <!-- Navigation Links -->
     <div class="row mt-4">

@@ -11,6 +11,12 @@
             <canvas id="performanceChart"></canvas>
         </div>
     </div>
+    <div class="row mb-3">
+        <div class="col-md-6">
+            <a href="{% url 'export_driver_performance' %}?format=csv" class="btn btn-outline-secondary">Export CSV</a>
+            <a href="{% url 'export_driver_performance' %}?format=xlsx" class="btn btn-outline-secondary">Export XLSX</a>
+        </div>
+    </div>
 
     <div class="row">
         <div class="col-12">

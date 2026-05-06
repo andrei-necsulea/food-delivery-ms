@@ -45,7 +45,19 @@
     </div>
 
     <div class="row mt-4">
-        <div class="col-12">
+        <div class="col-md-6">
+            <form method="get" action="{% url 'export_report' %}" class="d-flex gap-2">
+                <input type="hidden" name="report" value="restaurant_sales">
+                <input type="date" name="start" class="form-control" placeholder="Start date">
+                <input type="date" name="end" class="form-control" placeholder="End date">
+                <select name="format" class="form-select">
+                    <option value="csv">CSV</option>
+                    <option value="xlsx">XLSX</option>
+                </select>
+                <button class="btn btn-outline-primary">Export</button>
+            </form>
+        </div>
+        <div class="col-md-6 text-end">
             <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary">Back to Dashboard</a>
         </div>
     </div>

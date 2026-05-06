@@ -96,6 +96,20 @@
             <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary">Back to Dashboard</a>
         </div>
     </div>
+    <div class="row mt-3">
+        <div class="col-12">
+            <form method="get" action="{% url 'export_report' %}" class="d-flex gap-2">
+                <input type="hidden" name="report" value="deliveries">
+                <input type="date" name="start" class="form-control" placeholder="Start date">
+                <input type="date" name="end" class="form-control" placeholder="End date">
+                <select name="format" class="form-select">
+                    <option value="csv">CSV</option>
+                    <option value="xlsx">XLSX</option>
+                </select>
+                <button class="btn btn-outline-primary">Export Deliveries</button>
+            </form>
+        </div>
+    </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@3"></script>
