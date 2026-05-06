@@ -58,10 +58,6 @@
                                 <li class="list-group-item">Delivered</li>
                             </ul>
 
-                            {% if delivery.current_latitude and delivery.current_longitude %}
-                                <hr class="my-4">
-                                <div id="routeMap" style="height: 320px; border-radius: 16px; overflow: hidden;"></div>
-                            {% endif %}
                         {% elif delivery %}
                             <p class="text-muted">A delivery record exists, but no courier has been assigned yet.</p>
                         {% else %}
@@ -83,14 +79,16 @@
                             <p><strong>Vehicle:</strong> {{ delivery.driver.vehicle_type|default:'Not specified' }}</p>
                             <p><strong>Plate:</strong> {{ delivery.driver.vehicle_plate|default:'Not specified' }}</p>
 
+                            <hr>
+                            <p class="mb-2"><strong>Courier Location</strong></p>
                             {% if delivery.current_latitude and delivery.current_longitude %}
-                                <hr>
-                                <p class="mb-2"><strong>Courier Location</strong></p>
                                 <p>{{ delivery.current_latitude }}, {{ delivery.current_longitude }}</p>
-                                <p class="text-muted">Coordinates are updated by the courier.</p>
                             {% else %}
                                 <p class="text-muted">Courier location is not available yet.</p>
                             {% endif %}
+
+                            <div id="routeMap" style="height: 360px; border-radius: 16px; overflow: hidden; margin-top: 1rem"></div>
+                            <p class="text-muted mt-3">Click on the map to select a courier location. The route shown is a simulation from KFC Electroputere Mall Craiova to Str. Ștefan cel Mare nr 71, Craiova.</p>
 
                             {% if user.role == 'driver' and delivery.driver == user %}
                                 <hr>
@@ -141,37 +139,42 @@
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         var routeDataUrl = "{% url 'route_data' order.id %}";
-        var map = null;
-        var marker = null;
+        var map = L.map('routeMap').setView([44.3140, 23.8030], 13);
+        var courierMarker = null;
+        var selectedMarker = null;
         var locateButton = document.getElementById('locateButton');
         var statusElement = document.getElementById('geolocationStatus');
         var latitudeInput = document.getElementById('currentLatitude');
         var longitudeInput = document.getElementById('currentLongitude');
         var submitButton = document.getElementById('submitLocation');
 
-        function initializeMap(latitude, longitude) {
-            map = L.map('routeMap').setView([latitude, longitude], 14);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+            maxZoom: 19,
+        }).addTo(map);
 
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-                maxZoom: 19,
-            }).addTo(map);
+        var origin = [44.310200, 23.807400];
+        var destination = [44.318300, 23.799000];
 
-            marker = L.marker([latitude, longitude]).addTo(map)
-                .bindPopup('Courier location')
-                .openPopup();
-        }
+        L.marker(origin).addTo(map).bindPopup('KFC Electroputere Mall Craiova').openPopup();
+        L.marker(destination).addTo(map).bindPopup('Strada Ștefan cel Mare nr 71, Craiova');
+        L.polyline([origin, destination], { color: 'blue', dashArray: '6 4' }).addTo(map);
+        map.fitBounds([origin, destination], { padding: [50, 50] });
 
-        function updateMapMarker(latitude, longitude) {
-            if (!map) {
-                initializeMap(latitude, longitude);
+        function addCourierMarker(latitude, longitude, label) {
+            if (courierMarker) {
+                courierMarker.setLatLng([latitude, longitude]);
+                courierMarker.getPopup().setContent(label);
                 return;
             }
-
-            var latLng = [latitude, longitude];
-            marker.setLatLng(latLng);
-            map.panTo(latLng);
-            marker.getPopup().setContent('Courier location updated');
+            courierMarker = L.marker([latitude, longitude], { icon: L.icon({
+                iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
+                iconSize: [25, 41],
+                iconAnchor: [12, 41],
+                popupAnchor: [1, -34],
+                shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+                shadowSize: [41, 41]
+            })}).addTo(map).bindPopup(label).openPopup();
         }
 
         function fetchRouteData() {
@@ -184,7 +187,7 @@
                 })
                 .then(function(data) {
                     if (data.current_latitude && data.current_longitude) {
-                        updateMapMarker(data.current_latitude, data.current_longitude);
+                        addCourierMarker(data.current_latitude, data.current_longitude, 'Courier current location');
                     }
                 })
                 .catch(function(error) {
@@ -193,15 +196,39 @@
         }
 
         {% if delivery and delivery.current_latitude and delivery.current_longitude %}
-            initializeMap({{ delivery.current_latitude }}, {{ delivery.current_longitude }});
+            addCourierMarker({{ delivery.current_latitude }}, {{ delivery.current_longitude }}, 'Courier current location');
             setInterval(fetchRouteData, 10000);
         {% endif %}
 
-        if (!locateButton) {
-            return;
+        function chooseLocation(latlng) {
+            if (selectedMarker) {
+                selectedMarker.setLatLng(latlng);
+            } else {
+                selectedMarker = L.marker(latlng, { draggable: true }).addTo(map)
+                    .bindPopup('Selected location')
+                    .openPopup();
+
+                selectedMarker.on('dragend', function(event) {
+                    var position = event.target.getLatLng();
+                    chooseLocation(position);
+                });
+            }
+
+            latitudeInput.value = latlng.lat.toFixed(6);
+            longitudeInput.value = latlng.lng.toFixed(6);
+            submitButton.disabled = false;
+            statusElement.classList.remove('d-none', 'alert-danger');
+            statusElement.classList.add('alert-success');
+            statusElement.textContent = 'Location selected on map. Click Send location update to save it.';
+            selectedMarker.setPopupContent('Selected location \n' + latitudeInput.value + ', ' + longitudeInput.value);
         }
 
-        locateButton.addEventListener('click', function () {
+        if (locateButton) {
+            map.on('click', function(e) {
+                chooseLocation(e.latlng);
+            });
+
+            locateButton.addEventListener('click', function () {
             if (!navigator.geolocation) {
                 statusElement.classList.remove('d-none', 'alert-secondary');
                 statusElement.classList.add('alert-danger');
@@ -214,12 +241,12 @@
             statusElement.textContent = 'Detecting your current location...';
 
             navigator.geolocation.getCurrentPosition(function (position) {
-                latitudeInput.value = position.coords.latitude.toFixed(6);
-                longitudeInput.value = position.coords.longitude.toFixed(6);
-                statusElement.classList.remove('alert-danger');
-                statusElement.classList.add('alert-success');
-                statusElement.textContent = 'Location found. Click Send location update to save it.';
-                submitButton.disabled = false;
+                var latlng = {
+                    lat: position.coords.latitude,
+                    lng: position.coords.longitude
+                };
+                chooseLocation(latlng);
+                map.panTo(latlng);
             }, function (error) {
                 statusElement.classList.remove('alert-info');
                 statusElement.classList.add('alert-danger');
