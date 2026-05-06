@@ -2,7 +2,7 @@
 from collections import deque
 from django.conf import settings
 from django.shortcuts import render
-from django.http import JsonResponse
+from django.http import JsonResponse, Http404
 from django.db.models import Sum, Count, Avg, Q, F, ExpressionWrapper, DurationField
 from django.utils import timezone
 from datetime import timedelta
@@ -487,8 +487,10 @@ def system_logs(request):
     selected_lines = max(50, min(1000, selected_lines))
 
     log_path = settings.BASE_DIR / 'logs' / log_files[selected_log]
-    log_exists = log_path.exists()
-    log_content = ''.join(_read_last_lines(log_path, selected_lines)) if log_exists else ''
+    if not log_path.exists():
+        raise Http404(f"Log file '{log_files[selected_log]}' not found")
+
+    log_content = ''.join(_read_last_lines(log_path, selected_lines))
 
     return render(request, 'reports/system_logs.html', {
         'selected_log': selected_log,

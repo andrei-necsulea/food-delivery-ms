@@ -1,5 +1,5 @@
 from django.shortcuts import render, redirect, get_object_or_404
-from django.http import HttpResponseForbidden, JsonResponse
+from django.http import HttpResponseForbidden, JsonResponse, Http404
 from django.contrib import messages
 from django.utils import timezone
 from .models import Delivery
@@ -74,7 +74,8 @@ def route_info(request, order_id):
         return HttpResponseForbidden('You are not allowed to view this route information.')
 
     delivery = Delivery.objects.filter(order=order).first()
-
+    if not delivery:
+        raise Http404('Delivery record not found for this order.')
     if request.method == 'POST':
         if request.user.role != 'driver' or not delivery or delivery.driver != request.user:
             return HttpResponseForbidden('You are not allowed to update this route information.')
