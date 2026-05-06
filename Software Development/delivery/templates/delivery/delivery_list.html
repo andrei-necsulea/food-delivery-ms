@@ -11,6 +11,8 @@
 
     {% if user.role == 'admin' %}
         <a href="{% url 'delivery_create' %}" class="btn btn-primary">Add Delivery</a>
+    {% elif user.role == 'driver' %}
+        <a href="{% url 'available_orders' %}" class="btn btn-primary">Available Orders</a>
     {% endif %}
 </div>
 

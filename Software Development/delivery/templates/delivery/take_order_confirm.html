@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+
+{% block title %}Confirm Order Assignment{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card content-card">
+            <div class="card-body p-4">
+                <h1 class="h3 fw-bold mb-4">Confirm Order Assignment</h1>
+
+                <div class="mb-4">
+                    <p class="mb-1"><strong>Order:</strong> #{{ order.id }}</p>
+                    <p class="mb-1"><strong>Customer:</strong> {{ order.customer.username }}</p>
+                    <p class="mb-1"><strong>Restaurant:</strong> {{ order.restaurant.name }}</p>
+                    <p class="mb-1"><strong>Status:</strong> {{ order.status|title }}</p>
+                    <p class="mb-1"><strong>Total:</strong> {{ order.total_price }} lei</p>
+                </div>
+
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="d-flex gap-3">
+                        <a href="{% url 'available_orders' %}" class="btn btn-outline-secondary">Back</a>
+                        <button type="submit" class="btn btn-success">Take this Order</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

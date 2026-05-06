@@ -22,6 +22,49 @@ def delivery_list(request):
     return render(request, 'delivery/delivery_list.html', {'deliveries': deliveries})
 
 
+@role_required(['driver'])
+def available_orders(request):
+    assigned_order_ids = Delivery.objects.values_list('order_id', flat=True)
+    orders = Order.objects.exclude(id__in=assigned_order_ids).filter(
+        status__in=[Order.STATUS_ACCEPTED, Order.STATUS_PREPARING, Order.STATUS_READY]
+    ).select_related('customer', 'restaurant')
+
+    return render(request, 'delivery/available_orders.html', {
+        'orders': orders,
+    })
+
+
+@role_required(['driver'])
+def take_order(request, order_id):
+    order = get_object_or_404(Order, pk=order_id, status__in=[Order.STATUS_ACCEPTED, Order.STATUS_PREPARING, Order.STATUS_READY])
+    if Delivery.objects.filter(order=order).exists():
+        messages.error(request, 'This order has already been taken by another driver.')
+        return redirect('available_orders')
+
+    if request.method == 'POST':
+        delivery = Delivery.objects.create(
+            order=order,
+            driver=request.user,
+            status=Delivery.STATUS_ASSIGNED
+        )
+        order.status = Order.STATUS_OUT_FOR_DELIVERY
+        order.save()
+
+        Notification.create_delivery_notification(
+            user=order.customer,
+            delivery=delivery,
+            title='Delivery Assigned',
+            message=f'Your order #{order.id} has been assigned to courier {request.user.username}.'
+        )
+
+        messages.success(request, f'Order #{order.id} has been assigned to you.')
+        return redirect('delivery_list')
+
+    return render(request, 'delivery/take_order_confirm.html', {
+        'order': order,
+    })
+
+
 @role_required(['admin'])
 def delivery_create(request):
     deliveries_with_order_ids = Delivery.objects.values_list('order_id', flat=True)

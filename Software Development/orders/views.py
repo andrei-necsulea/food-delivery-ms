@@ -79,33 +79,8 @@ def order_update(request, pk):
     if request.user.role == 'client':
         order = get_object_or_404(Order, pk=pk, customer=request.user)
 
-        if order.status != Order.STATUS_CREATED:
-            messages.error(request, 'You can only modify an order while it is still in created status.')
-            return HttpResponseForbidden('You can only modify an order while it is still in created status.')
-
-        if request.method == 'POST':
-            # Only allow payment method to be changed - address and phone cannot be modified after checkout
-            order.payment_method = request.POST.get('payment_method', Order.PAYMENT_METHOD_CASH)
-            order.save()
-
-            # Create notification for customer about order modification
-            Notification.create_order_notification(
-                user=order.customer,
-                order=order,
-                title="Order Modified",
-                message=f"Your order #{order.id} has been successfully modified."
-            )
-
-            messages.success(request, 'Order updated successfully.')
-            return redirect('order_list')
-
-        return render(request, 'orders/order_form.html', {
-            'order': order,
-            'client_mode': True,
-            'manager_mode': False,
-            'client_readonly_mode': True,
-            'payment_methods': [choice[0] for choice in Order.PAYMENT_METHOD_CHOICES],
-        })
+        messages.error(request, 'You cannot modify an order after checkout.')
+        return redirect('order_list')
 
     order = get_object_or_404(Order, pk=pk, restaurant__manager=request.user)
 
@@ -296,9 +271,12 @@ def delivery_details(request):
         messages.error(request, 'Your cart is empty.')
         return redirect('cart_detail')
 
+    payment_methods = [Order.PAYMENT_METHOD_CASH, Order.PAYMENT_METHOD_CARD]
+
     if request.method == 'POST':
         delivery_address = request.POST.get('delivery_address', '').strip()
         phone_number = request.POST.get('phone_number', '').strip()
+        payment_method = request.POST.get('payment_method', Order.PAYMENT_METHOD_CASH)
 
         if not delivery_address:
             messages.error(request, 'Delivery address is required.')
@@ -308,6 +286,8 @@ def delivery_details(request):
                 'cart_total': cart.total_price(),
                 'delivery_address': delivery_address,
                 'phone_number': phone_number,
+                'payment_method': payment_method,
+                'payment_methods': payment_methods,
             })
 
         if not phone_number:
@@ -318,11 +298,17 @@ def delivery_details(request):
                 'cart_total': cart.total_price(),
                 'delivery_address': delivery_address,
                 'phone_number': phone_number,
+                'payment_method': payment_method,
+                'payment_methods': payment_methods,
             })
+
+        if payment_method not in payment_methods:
+            payment_method = Order.PAYMENT_METHOD_CASH
 
         # Store delivery details in session
         request.session['delivery_address'] = delivery_address
         request.session['phone_number'] = phone_number
+        request.session['payment_method'] = payment_method
         request.session.modified = True
 
         return redirect('checkout')
@@ -333,6 +319,8 @@ def delivery_details(request):
         'cart_total': cart.total_price(),
         'delivery_address': request.user.address or '',
         'phone_number': request.user.phone_number or '',
+        'payment_method': request.session.get('payment_method', Order.PAYMENT_METHOD_CASH),
+        'payment_methods': payment_methods,
     })
 
 
@@ -348,10 +336,14 @@ def checkout(request):
     # Get delivery details from session
     delivery_address = request.session.get('delivery_address', '')
     phone_number = request.session.get('phone_number', '')
+    payment_method = request.session.get('payment_method', Order.PAYMENT_METHOD_CASH)
 
     if not delivery_address or not phone_number:
         messages.error(request, 'Please provide delivery details before checkout.')
         return redirect('delivery_details')
+
+    if payment_method not in [Order.PAYMENT_METHOD_CASH, Order.PAYMENT_METHOD_CARD]:
+        payment_method = Order.PAYMENT_METHOD_CASH
 
     order = Order.objects.create(
         customer=request.user,
@@ -360,7 +352,7 @@ def checkout(request):
         status=Order.STATUS_CREATED,
         delivery_address=delivery_address,
         phone_number=phone_number,
-        payment_method=Order.PAYMENT_METHOD_CASH,
+        payment_method=payment_method,
     )
 
     for item in cart_items:
@@ -380,6 +372,8 @@ def checkout(request):
         del request.session['delivery_address']
     if 'phone_number' in request.session:
         del request.session['phone_number']
+    if 'payment_method' in request.session:
+        del request.session['payment_method']
     request.session.modified = True
 
     # Create notification for customer about new order
