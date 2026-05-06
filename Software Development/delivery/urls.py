@@ -7,6 +7,7 @@ urlpatterns = [
     path('take/<int:order_id>/', views.take_order, name='take_order'),
     path('route/<int:order_id>/', views.route_info, name='route_info'),
     path('route-data/<int:order_id>/', views.route_data, name='route_data'),
+    path('update-location/<int:delivery_id>/', views.update_courier_location, name='update_courier_location'),
     path('create/', views.delivery_create, name='delivery_create'),
     path('update/<int:pk>/', views.delivery_update, name='delivery_update'),
     path('delete/<int:pk>/', views.delivery_delete, name='delivery_delete'),

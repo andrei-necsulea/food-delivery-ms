@@ -95,15 +95,16 @@
 
                             {% if user.role == 'driver' and delivery.driver == user %}
                                 <hr>
-                                <form method="post" class="mt-3">
+                                <form id="locationUpdateForm" class="mt-3">
                                     {% csrf_token %}
                                     <div class="mb-3">
                                         <button type="button" class="btn btn-outline-primary" id="locateButton">
                                             Use browser location
                                         </button>
                                     </div>
-                                    <input type="hidden" name="current_latitude" id="currentLatitude">
-                                    <input type="hidden" name="current_longitude" id="currentLongitude">
+                                    <input type="hidden" name="latitude" id="currentLatitude">
+                                    <input type="hidden" name="longitude" id="currentLongitude">
+                                    <input type="hidden" name="delivery_id" id="deliveryId" value="{{ delivery.id }}">
                                     <div class="alert alert-secondary d-none" id="geolocationStatus" role="status"></div>
                                     <button type="submit" class="btn btn-success" id="submitLocation" disabled>
                                         Send location update
@@ -265,9 +266,56 @@
                 });
             });
         }
-    });
-</script>
-{% endblock %}
 
+        var locationForm = document.getElementById('locationUpdateForm');
+        if (locationForm) {
+            locationForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                var latitude = document.getElementById('currentLatitude').value;
+                var longitude = document.getElementById('currentLongitude').value;
+                var deliveryId = document.getElementById('deliveryId').value;
+                var csrfToken = document.querySelector('input[name="csrfmiddlewaretoken"]').value;
+
+                if (!latitude || !longitude) {
+                    statusElement.classList.remove('d-none', 'alert-success');
+                    statusElement.classList.add('alert-danger');
+                    statusElement.textContent = 'Please select a location first.';
+                    return;
+                }
+
+                statusElement.classList.remove('d-none', 'alert-success', 'alert-danger');
+                statusElement.classList.add('alert-info');
+                statusElement.textContent = 'Sending location update...';
+
+                var formData = new FormData();
+                formData.append('latitude', latitude);
+                formData.append('longitude', longitude);
+                formData.append('csrfmiddlewaretoken', csrfToken);
+
+                fetch('/delivery/update-location/' + deliveryId + '/', {
+                    method: 'POST',
+                    body: formData,
+                    credentials: 'same-origin'
+                })
+                .then(function(response) {
+                    if (!response.ok) {
+                        throw new Error('Failed to update location.');
+                    }
+                    return response.json();
+                })
+                .then(function(data) {
+                    statusElement.classList.remove('alert-info');
+                    statusElement.classList.add('alert-success');
+                    statusElement.textContent = data.message || 'Location updated successfully!';
+                    addCourierMarker(data.current_latitude, data.current_longitude, 'Your current location');
+                })
+                .catch(function(error) {
+                    statusElement.classList.remove('alert-info');
+                    statusElement.classList.add('alert-danger');
+                    statusElement.textContent = 'Error updating location. Please try again.';
+                });
+            });
+        }
+    });
 </script>
 {% endblock %}

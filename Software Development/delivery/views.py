@@ -124,6 +124,33 @@ def route_data(request, order_id):
     })
 
 
+@role_required(['driver'])
+def update_courier_location(request, delivery_id):
+    delivery = get_object_or_404(Delivery, pk=delivery_id, driver=request.user)
+
+    if request.method == 'POST':
+        latitude = request.POST.get('latitude')
+        longitude = request.POST.get('longitude')
+
+        if not latitude or not longitude:
+            return JsonResponse({'error': 'Latitude and longitude are required.'}, status=400)
+
+        try:
+            delivery.current_latitude = float(latitude)
+            delivery.current_longitude = float(longitude)
+            delivery.save()
+            return JsonResponse({
+                'success': True,
+                'message': 'Location updated successfully.',
+                'current_latitude': float(delivery.current_latitude),
+                'current_longitude': float(delivery.current_longitude),
+            })
+        except (ValueError, TypeError):
+            return JsonResponse({'error': 'Invalid coordinates provided.'}, status=400)
+
+    return JsonResponse({'error': 'Method not allowed.'}, status=405)
+
+
 @role_required(['admin'])
 def delivery_create(request):
     deliveries_with_order_ids = Delivery.objects.values_list('order_id', flat=True)
