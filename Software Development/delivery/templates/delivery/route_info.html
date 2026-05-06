@@ -95,27 +95,32 @@
                                  data-initial-lat="{% if delivery and delivery.current_latitude %}{{ delivery.current_latitude }}{% endif %}"
                                  data-initial-lng="{% if delivery and delivery.current_longitude %}{{ delivery.current_longitude }}{% endif %}">
                             </div>
-                            <p class="text-muted mt-3">Click on the map to select a courier location. The route shown is a simulation from KFC Electroputere Mall Craiova to Str. Ștefan cel Mare nr 71, Craiova.</p>
+                            <p class="text-muted mt-3">🚗 Auto-tracking live location. Updates every 10 seconds.</p>
 
                             {% if user.role == 'driver' and delivery.driver == user %}
                                 <hr>
-                                <form id="locationUpdateForm" class="mt-3">
+                                <div id="trackingStatus" class="alert alert-info" role="status">
+                                    <strong>📍 Tracking Status:</strong> <span id="statusText">Initializing GPS...</span>
+                                </div>
+                                <div id="accuracyInfo" class="alert alert-secondary d-none" role="status">
+                                    Accuracy: <span id="accuracyValue">--</span> meters
+                                </div>
+                                
+                                <!-- Status Update Form for Driver -->
+                                <hr>
+                                <form id="statusUpdateForm" class="mt-3">
                                     {% csrf_token %}
                                     <div class="mb-3">
-                                        <button type="button" class="btn btn-outline-primary" id="locateButton">
-                                            Use browser location
-                                        </button>
+                                        <label class="form-label"><strong>Update Delivery Status</strong></label>
+                                        <select name="status" id="statusSelect" class="form-select">
+                                            <option value="">-- Select Status --</option>
+                                        </select>
                                     </div>
-                                    <input type="hidden" name="latitude" id="currentLatitude">
-                                    <input type="hidden" name="longitude" id="currentLongitude">
-                                    <input type="hidden" name="location_label" id="locationLabel" value="{% if delivery %}{{ delivery.location_label }}{% endif %}">
-                                    <input type="hidden" name="location_code" id="locationCode" value="{% if delivery %}{{ delivery.location_code }}{% endif %}">
-                                    <input type="hidden" name="delivery_id" id="deliveryId" value="{{ delivery.id }}">
-                                    <div class="alert alert-secondary d-none" id="geolocationStatus" role="status"></div>
-                                    <button type="submit" class="btn btn-success" id="submitLocation" disabled>
-                                        Send location update
+                                    <button type="submit" class="btn btn-success">
+                                        Update Status
                                     </button>
                                 </form>
+                                <div id="statusMessage" class="alert d-none mt-3" role="status"></div>
                             {% endif %}
                         {% else %}
                             <p class="text-muted">No courier assigned to this order yet.</p>
@@ -129,9 +134,7 @@
 {% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-      integrity="sha256-o9N1j7kG7rkw8BXtA6DWgZB7sx14D4Jg7njvHYwG3Zo="
-      crossorigin=""/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <style>
     #routeMap {
         min-height: 320px;
@@ -143,61 +146,99 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-        integrity="sha256-o9N1j7kG7rkw8BXtA6DWgZB7sx14D4Jg7njvHYwG3Zo="
-        crossorigin=""></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         var routeDataUrl = "{% url 'route_data' order.id %}";
+        var updateLocationUrl = "{% url 'update_courier_location' delivery.id %}";
+        var isDriver = "{{ user.role }}" === 'driver' && "{{ delivery.driver.id }}" === "{{ user.id }}";
+        
         var map = L.map('routeMap').setView([44.3140, 23.8030], 13);
         var courierMarker = null;
-        var selectedMarker = null;
-        var locateButton = document.getElementById('locateButton');
-        var statusElement = document.getElementById('geolocationStatus');
-        var latitudeInput = document.getElementById('currentLatitude');
-        var longitudeInput = document.getElementById('currentLongitude');
-        var submitButton = document.getElementById('submitLocation');
+        var restaurantMarker = null;
+        var customerMarker = null;
+        var trackingIntervalId = null;
+        var updateIntervalId = null;
+        
+        var statusElement = document.getElementById('trackingStatus');
+        var statusText = document.getElementById('statusText');
+        var accuracyInfo = document.getElementById('accuracyInfo');
+        var accuracyValue = document.getElementById('accuracyValue');
 
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
             maxZoom: 19,
         }).addTo(map);
 
-        var origin = [44.310200, 23.807400];
-        var destination = [44.318300, 23.799000];
+        // Restaurant and customer locations (from route data)
+        var restaurantLat = 44.310200;
+        var restaurantLng = 23.807400;
+        var customerLat = 44.318300;
+        var customerLng = 23.799000;
 
-        L.marker(origin).addTo(map).bindPopup('KFC Electroputere Mall Craiova').openPopup();
-        L.marker(destination).addTo(map).bindPopup('Strada Ștefan cel Mare nr 71, Craiova');
-        L.polyline([origin, destination], { color: 'blue', dashArray: '6 4' }).addTo(map);
-        map.fitBounds([origin, destination], { padding: [50, 50] });
-
-        function addCourierMarker(latitude, longitude, label) {
-            if (courierMarker) {
-                courierMarker.setLatLng([latitude, longitude]);
-                courierMarker.getPopup().setContent(label);
-                return;
-            }
-            courierMarker = L.marker([latitude, longitude], { icon: L.icon({
+        // Add restaurant marker
+        restaurantMarker = L.marker([restaurantLat, restaurantLng], {
+            icon: L.icon({
                 iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
                 iconSize: [25, 41],
                 iconAnchor: [12, 41],
                 popupAnchor: [1, -34],
-                shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+            })
+        }).addTo(map).bindPopup('<strong>🏪 Restaurant</strong><br>{{ order.restaurant.name }}');
+
+        // Add customer marker (green)
+        customerMarker = L.marker([customerLat, customerLng], {
+            icon: L.icon({
+                iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
+                shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+                iconSize: [25, 41],
+                iconAnchor: [12, 41],
+                popupAnchor: [1, -34],
                 shadowSize: [41, 41]
-            })}).addTo(map).bindPopup(label).openPopup();
+            })
+        }).addTo(map).bindPopup('<strong>📍 Delivery Location</strong><br>{{ order.delivery_address }}');
+
+        // Draw route line
+        L.polyline([[restaurantLat, restaurantLng], [customerLat, customerLng]], {
+            color: 'blue',
+            dashArray: '6 4',
+            weight: 2
+        }).addTo(map);
+
+        // Fit bounds
+        map.fitBounds([[restaurantLat, restaurantLng], [customerLat, customerLng]], { padding: [50, 50] });
+
+        function addCourierMarker(latitude, longitude, label) {
+            if (courierMarker) {
+                courierMarker.setLatLng([latitude, longitude]);
+                if (courierMarker.getPopup()) {
+                    courierMarker.getPopup().setContent('<strong>🚗 Courier</strong><br>' + label);
+                }
+                return;
+            }
+            courierMarker = L.marker([latitude, longitude], {
+                icon: L.icon({
+                    iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
+                    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+                    iconSize: [25, 41],
+                    iconAnchor: [12, 41],
+                    popupAnchor: [1, -34],
+                    shadowSize: [41, 41]
+                })
+            }).addTo(map).bindPopup('<strong>🚗 Courier</strong><br>' + label).openPopup();
         }
 
+        // Auto-update from server (polling)
         function fetchRouteData() {
             fetch(routeDataUrl, { credentials: 'same-origin' })
                 .then(function(response) {
-                    if (!response.ok) {
-                        throw new Error('Unable to fetch location data.');
-                    }
+                    if (!response.ok) throw new Error('Unable to fetch location data.');
                     return response.json();
                 })
                 .then(function(data) {
                     if (data.current_latitude && data.current_longitude) {
-                        addCourierMarker(data.current_latitude, data.current_longitude, 'Courier current location');
+                        var label = data.location_label || (data.current_latitude + ', ' + data.current_longitude);
+                        addCourierMarker(data.current_latitude, data.current_longitude, label);
                     }
                 })
                 .catch(function(error) {
@@ -205,132 +246,156 @@
                 });
         }
 
-        var mapElement = document.getElementById('routeMap');
-        var initialLat = mapElement.dataset.initialLat;
-        var initialLng = mapElement.dataset.initialLng;
+        // Initial load from server
+        fetchRouteData();
+        
+        // Poll server every 10 seconds for other users' updates
+        trackingIntervalId = setInterval(fetchRouteData, 10000);
 
-        if (initialLat && initialLng) {
-            addCourierMarker(parseFloat(initialLat), parseFloat(initialLng), 'Courier current location');
-            setInterval(fetchRouteData, 10000);
-        }
+        // AUTO-TRACK GPS for driver
+        if (isDriver && navigator.geolocation) {
+            statusText.textContent = '📍 Activating GPS tracking...';
+            
+            // Start watching position
+            var watchId = navigator.geolocation.watchPosition(
+                function(position) {
+                    var lat = position.coords.latitude;
+                    var lng = position.coords.longitude;
+                    var accuracy = position.coords.accuracy;
 
-        function chooseLocation(latlng) {
-            if (selectedMarker) {
-                selectedMarker.setLatLng(latlng);
-            } else {
-                selectedMarker = L.marker(latlng, { draggable: true }).addTo(map)
-                    .bindPopup('Selected location')
-                    .openPopup();
-
-                selectedMarker.on('dragend', function(event) {
-                    var position = event.target.getLatLng();
-                    chooseLocation(position);
-                });
-            }
-
-            latitudeInput.value = latlng.lat.toFixed(6);
-            longitudeInput.value = latlng.lng.toFixed(6);
-            submitButton.disabled = false;
-            statusElement.classList.remove('d-none', 'alert-danger');
-            statusElement.classList.add('alert-success');
-            statusElement.textContent = 'Location selected on map. Click Send location update to save it.';
-            // perform reverse geocoding to get a human-friendly label
-            fetch('https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=' + latlng.lat + '&lon=' + latlng.lng)
-                .then(function(resp) { return resp.json(); })
-                .then(function(data) {
-                    var label = data && data.display_name ? data.display_name : (latitudeInput.value + ', ' + longitudeInput.value);
-                    document.getElementById('locationLabel').value = label;
-                    selectedMarker.setPopupContent('Selected location \n' + label);
-                })
-                .catch(function() {
-                    selectedMarker.setPopupContent('Selected location \n' + latitudeInput.value + ', ' + longitudeInput.value);
-                });
-        }
-
-        if (locateButton) {
-            map.on('click', function(e) {
-                chooseLocation(e.latlng);
-            });
-
-            locateButton.addEventListener('click', function () {
-                if (!navigator.geolocation) {
-                    statusElement.classList.remove('d-none', 'alert-secondary');
-                    statusElement.classList.add('alert-danger');
-                    statusElement.textContent = 'Geolocation is not supported by your browser.';
-                    return;
-                }
-
-                statusElement.classList.remove('d-none', 'alert-secondary', 'alert-danger');
-                statusElement.classList.add('alert-info');
-                statusElement.textContent = 'Detecting your current location...';
-
-                navigator.geolocation.getCurrentPosition(function (position) {
-                    var latlng = {
-                        lat: position.coords.latitude,
-                        lng: position.coords.longitude
-                    };
-                    chooseLocation(latlng);
-                    map.panTo(latlng);
-                }, function (error) {
+                    // Update map
+                    addCourierMarker(lat, lng, lat.toFixed(6) + ', ' + lng.toFixed(6));
+                    statusText.textContent = '✅ GPS Active (Lat: ' + lat.toFixed(4) + ', Lng: ' + lng.toFixed(4) + ')';
+                    accuracyValue.textContent = Math.round(accuracy);
+                    if (!accuracyInfo.classList.contains('d-none')) {
+                        accuracyInfo.classList.remove('d-none');
+                    }
+                    
+                    // Auto-send to server every 30 seconds
+                    if (!updateIntervalId) {
+                        updateIntervalId = setInterval(function() {
+                            navigator.geolocation.getCurrentPosition(function(pos) {
+                                autoSendLocation(pos.coords.latitude, pos.coords.longitude);
+                            });
+                        }, 30000);
+                    }
+                },
+                function(error) {
+                    statusText.textContent = '❌ GPS Error: ' + error.message;
                     statusElement.classList.remove('alert-info');
                     statusElement.classList.add('alert-danger');
-                    statusElement.textContent = 'Unable to determine location. Please allow location access and try again.';
-                }, {
+                },
+                {
                     enableHighAccuracy: true,
-                    timeout: 15000,
-                    maximumAge: 10000
-                });
+                    timeout: 10000,
+                    maximumAge: 0
+                }
+            );
+        } else if (!isDriver) {
+            statusElement.classList.add('d-none');
+        }
+
+        // Auto-send location to server
+        function autoSendLocation(latitude, longitude) {
+            var csrfToken = document.querySelector('input[name="csrfmiddlewaretoken"]') ? document.querySelector('input[name="csrfmiddlewaretoken"]').value : '{{ csrf_token }}';
+            var formData = new FormData();
+            formData.append('latitude', latitude);
+            formData.append('longitude', longitude);
+            formData.append('location_label', '');
+            formData.append('location_code', '');
+            formData.append('csrfmiddlewaretoken', csrfToken);
+
+            fetch(updateLocationUrl, {
+                method: 'POST',
+                body: formData,
+                credentials: 'same-origin'
+            })
+            .then(function(response) {
+                if (!response.ok) throw new Error('Failed to update location.');
+                return response.json();
+            })
+            .then(function(data) {
+                console.log('Location auto-saved:', data.message);
+            })
+            .catch(function(error) {
+                console.warn('Auto-send location failed:', error);
             });
         }
 
-        var locationForm = document.getElementById('locationUpdateForm');
-        if (locationForm) {
-            locationForm.addEventListener('submit', function(e) {
+        // Status update form for driver
+        var statusForm = document.getElementById('statusUpdateForm');
+        var statusSelect = document.getElementById('statusSelect');
+        var statusMessage = document.getElementById('statusMessage');
+        
+        if (statusForm) {
+            // Populate allowed statuses
+            var currentStatus = "{{ delivery.status }}";
+            var statusOptions = {
+                'assigned': 'Assigned',
+                'picked_up': 'Picked Up',
+                'on_the_way': 'On The Way',
+                'delivered': 'Delivered'
+            };
+            
+            // Define transitions
+            var transitions = {
+                'assigned': ['picked_up'],
+                'picked_up': ['on_the_way'],
+                'on_the_way': ['delivered'],
+                'delivered': []
+            };
+            
+            var allowedStatuses = transitions[currentStatus] || [];
+            
+            // Populate dropdown with allowed statuses
+            allowedStatuses.forEach(function(status) {
+                var option = document.createElement('option');
+                option.value = status;
+                option.textContent = statusOptions[status];
+                statusSelect.appendChild(option);
+            });
+            
+            // Handle form submit
+            statusForm.addEventListener('submit', function(e) {
                 e.preventDefault();
-                var latitude = document.getElementById('currentLatitude').value;
-                var longitude = document.getElementById('currentLongitude').value;
-                var deliveryId = document.getElementById('deliveryId').value;
-                var csrfToken = document.querySelector('input[name="csrfmiddlewaretoken"]').value;
-
-                if (!latitude || !longitude) {
-                    statusElement.classList.remove('d-none', 'alert-success');
-                    statusElement.classList.add('alert-danger');
-                    statusElement.textContent = 'Please select a location first.';
+                var newStatus = statusSelect.value;
+                
+                if (!newStatus) {
+                    statusMessage.textContent = 'Please select a status.';
+                    statusMessage.classList.remove('d-none', 'alert-success');
+                    statusMessage.classList.add('alert-danger');
                     return;
                 }
-
-                statusElement.classList.remove('d-none', 'alert-success', 'alert-danger');
-                statusElement.classList.add('alert-info');
-                statusElement.textContent = 'Sending location update...';
-
+                
+                var csrfToken = document.querySelector('input[name="csrfmiddlewaretoken"]').value;
                 var formData = new FormData();
-                formData.append('latitude', latitude);
-                formData.append('longitude', longitude);
-                formData.append('location_label', document.getElementById('locationLabel').value || '');
-                formData.append('location_code', document.getElementById('locationCode').value || '');
+                formData.append('status', newStatus);
                 formData.append('csrfmiddlewaretoken', csrfToken);
-
-                fetch('/delivery/update-location/' + deliveryId + '/', {
+                
+                var updateStatusUrl = '/delivery/driver-update-status/{{ delivery.id }}/';
+                
+                fetch(updateStatusUrl, {
                     method: 'POST',
                     body: formData,
                     credentials: 'same-origin'
                 })
                 .then(function(response) {
-                    if (!response.ok) {
-                        throw new Error('Failed to update location.');
-                    }
+                    if (!response.ok) throw new Error('Failed to update status.');
                     return response.json();
                 })
                 .then(function(data) {
-                    statusElement.classList.remove('alert-info');
-                    statusElement.classList.add('alert-success');
-                    statusElement.textContent = data.message || 'Location updated successfully!';
-                    addCourierMarker(data.current_latitude, data.current_longitude, 'Your current location');
+                    statusMessage.textContent = '✅ ' + data.message;
+                    statusMessage.classList.remove('d-none', 'alert-danger');
+                    statusMessage.classList.add('alert-success');
+                    // Reload page after 1.5 seconds to reflect new status
+                    setTimeout(function() {
+                        window.location.reload();
+                    }, 1500);
                 })
                 .catch(function(error) {
-                    statusElement.classList.remove('alert-info');
-                    statusElement.classList.add('alert-danger');
-                    statusElement.textContent = 'Error updating location. Please try again.';
+                    statusMessage.textContent = '❌ Error: ' + error.message;
+                    statusMessage.classList.remove('d-none', 'alert-success');
+                    statusMessage.classList.add('alert-danger');
                 });
             });
         }

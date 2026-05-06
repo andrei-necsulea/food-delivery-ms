@@ -174,6 +174,54 @@ def update_courier_location(request, delivery_id):
     return JsonResponse({'error': 'Method not allowed.'}, status=405)
 
 
+@role_required(['driver'])
+def driver_update_status(request, delivery_id):
+    """Allow driver to update delivery status without manual coordinates"""
+    delivery = get_object_or_404(Delivery, pk=delivery_id, driver=request.user)
+
+    if request.method == 'POST':
+        new_status = request.POST.get('status')
+        allowed_statuses = delivery.get_allowed_next_statuses_for_driver()
+
+        if new_status not in allowed_statuses:
+            return JsonResponse({'error': 'Invalid delivery status transition.'}, status=400)
+
+        delivery.status = new_status
+        delivery.save()
+
+        # Update order status
+        if delivery.status in [Delivery.STATUS_PICKED_UP, Delivery.STATUS_ON_THE_WAY]:
+            delivery.order.status = Order.STATUS_OUT_FOR_DELIVERY
+            delivery.order.save()
+
+        if delivery.status == Delivery.STATUS_DELIVERED:
+            delivery.order.status = Order.STATUS_DELIVERED
+            delivery.order.save()
+
+        # Create notification for customer
+        status_messages = {
+            Delivery.STATUS_PICKED_UP: f"Your order #{delivery.order.id} has been picked up by courier {delivery.driver.username}.",
+            Delivery.STATUS_ON_THE_WAY: f"Your order #{delivery.order.id} is on the way to you.",
+            Delivery.STATUS_DELIVERED: f"Your order #{delivery.order.id} has been delivered successfully.",
+        }
+
+        if delivery.status in status_messages:
+            Notification.create_delivery_notification(
+                user=delivery.order.customer,
+                delivery=delivery,
+                title="Delivery Update",
+                message=status_messages[delivery.status]
+            )
+
+        return JsonResponse({
+            'success': True,
+            'message': f'Delivery status updated to {new_status}.',
+            'status': delivery.status,
+        })
+
+    return JsonResponse({'error': 'Method not allowed.'}, status=405)
+
+
 @role_required(['admin'])
 def delivery_create(request):
     deliveries_with_order_ids = Delivery.objects.values_list('order_id', flat=True)
@@ -227,6 +275,54 @@ def delivery_create(request):
 
 @role_required(['admin', 'driver'])
 def delivery_update(request, pk):
+    # Driver: update status only (no coordinates)
+    if request.user.role == 'driver':
+        delivery = get_object_or_404(Delivery, pk=pk, driver=request.user)
+        
+        if request.method == 'POST':
+            new_status = request.POST.get('status')
+            allowed_statuses = delivery.get_allowed_next_statuses_for_driver()
+
+            if new_status not in allowed_statuses:
+                messages.error(request, 'Invalid delivery status transition.')
+                return HttpResponseForbidden("Invalid delivery status transition.")
+
+            delivery.status = new_status
+            delivery.save()
+
+            if delivery.status in [Delivery.STATUS_PICKED_UP, Delivery.STATUS_ON_THE_WAY]:
+                delivery.order.status = Order.STATUS_OUT_FOR_DELIVERY
+                delivery.order.save()
+
+            if delivery.status == Delivery.STATUS_DELIVERED:
+                delivery.order.status = Order.STATUS_DELIVERED
+                delivery.order.save()
+
+            # Create notification for customer about delivery status change by driver
+            status_messages = {
+                Delivery.STATUS_PICKED_UP: f"Your order #{delivery.order.id} has been picked up by courier {delivery.driver.username}.",
+                Delivery.STATUS_ON_THE_WAY: f"Your order #{delivery.order.id} is on the way to you.",
+                Delivery.STATUS_DELIVERED: f"Your order #{delivery.order.id} has been delivered successfully.",
+            }
+
+            if delivery.status in status_messages:
+                Notification.create_delivery_notification(
+                    user=delivery.order.customer,
+                    delivery=delivery,
+                    title="Delivery Update",
+                    message=status_messages[delivery.status]
+                )
+
+            messages.success(request, 'Delivery status updated successfully.')
+            return redirect('delivery_list')
+
+        return render(request, 'delivery/delivery_form.html', {
+            'delivery': delivery,
+            'driver_mode': True,
+            'allowed_statuses': delivery.get_allowed_next_statuses_for_driver(),
+        })
+    
+    # Admin: update everything (status + coordinates)
     if request.user.role == 'admin':
         delivery = get_object_or_404(Delivery, pk=pk)
         deliveries_with_order_ids = Delivery.objects.exclude(pk=pk).values_list('order_id', flat=True)
@@ -281,56 +377,6 @@ def delivery_update(request, pk):
             'driver_mode': False,
             'allowed_statuses': [choice[0] for choice in Delivery.STATUS_CHOICES],
         })
-
-    delivery = get_object_or_404(Delivery, pk=pk, driver=request.user)
-
-    if request.method == 'POST':
-        new_status = request.POST.get('status')
-        allowed_statuses = delivery.get_allowed_next_statuses_for_driver()
-        # allow the driver to keep the current status (so they can update coords without changing status)
-        if delivery.status not in allowed_statuses:
-            allowed_statuses = [delivery.status] + allowed_statuses
-
-        if new_status not in allowed_statuses:
-            messages.error(request, 'Invalid delivery status transition.')
-            return HttpResponseForbidden("Invalid delivery status transition.")
-
-        delivery.status = new_status
-        delivery.current_latitude = request.POST.get('current_latitude') or delivery.current_latitude
-        delivery.current_longitude = request.POST.get('current_longitude') or delivery.current_longitude
-        delivery.save()
-
-        if delivery.status in [Delivery.STATUS_PICKED_UP, Delivery.STATUS_ON_THE_WAY]:
-            delivery.order.status = Order.STATUS_OUT_FOR_DELIVERY
-            delivery.order.save()
-
-        if delivery.status == Delivery.STATUS_DELIVERED:
-            delivery.order.status = Order.STATUS_DELIVERED
-            delivery.order.save()
-
-        # Create notification for customer about delivery status change by driver
-        status_messages = {
-            Delivery.STATUS_PICKED_UP: f"Your order #{delivery.order.id} has been picked up by courier {delivery.driver.username}.",
-            Delivery.STATUS_ON_THE_WAY: f"Your order #{delivery.order.id} is on the way to you.",
-            Delivery.STATUS_DELIVERED: f"Your order #{delivery.order.id} has been delivered successfully.",
-        }
-
-        if delivery.status in status_messages:
-            Notification.create_delivery_notification(
-                user=delivery.order.customer,
-                delivery=delivery,
-                title="Delivery Update",
-                message=status_messages[delivery.status]
-            )
-
-        messages.success(request, 'Delivery status updated successfully.')
-        return redirect('delivery_list')
-
-    return render(request, 'delivery/delivery_form.html', {
-        'delivery': delivery,
-        'driver_mode': True,
-        'allowed_statuses': ([delivery.status] + delivery.get_allowed_next_statuses_for_driver()) if delivery else [],
-    })
 
 
 @role_required(['admin'])
