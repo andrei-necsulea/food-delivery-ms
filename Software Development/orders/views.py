@@ -117,7 +117,6 @@ def order_update(request, pk):
             messages.error(request, 'Invalid status transition for manager.')
             return HttpResponseForbidden("Invalid status transition for manager.")
 
-        old_status = order.status
         order.status = new_status
         order.save()
 
