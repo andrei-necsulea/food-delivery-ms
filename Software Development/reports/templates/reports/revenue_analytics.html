@@ -1,0 +1,132 @@
+{% extends 'base.html' %}
+
+{% block title %}Revenue Analytics{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1>Revenue Analytics</h1>
+    
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="alert alert-info">
+                <strong>Total Revenue (30 days):</strong> ${{ total_revenue|floatformat:2 }}
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="alert alert-success">
+                <strong>Avg Daily Revenue:</strong> ${{ avg_daily_revenue|floatformat:2 }}
+            </div>
+        </div>
+    </div>
+
+    <!-- Daily Revenue (30 days) -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <h4>Daily Revenue (Last 30 Days)</h4>
+            <canvas id="dailyChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Weekly Revenue (12 weeks) -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <h4>Weekly Revenue (Last 12 Weeks)</h4>
+            <canvas id="weeklyChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Monthly Revenue (12 months) -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <h4>Monthly Revenue (Last 12 Months)</h4>
+            <canvas id="monthlyChart"></canvas>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-12">
+            <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary">Back to Dashboard</a>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const dailyLabels = {{ daily_labels|safe }};
+    const dailyData = {{ daily_data|safe }};
+    const weeklyLabels = {{ weekly_labels|safe }};
+    const weeklyData = {{ weekly_data|safe }};
+    const monthlyLabels = {{ monthly_labels|safe }};
+    const monthlyData = {{ monthly_data|safe }};
+
+    // Daily Chart
+    const dailyCtx = document.getElementById('dailyChart').getContext('2d');
+    new Chart(dailyCtx, {
+        type: 'line',
+        data: {
+            labels: dailyLabels,
+            datasets: [{
+                label: 'Daily Revenue ($)',
+                data: dailyData,
+                borderColor: 'rgb(75, 192, 192)',
+                backgroundColor: 'rgba(75, 192, 192, 0.1)',
+                tension: 0.1,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                title: { display: true, text: 'Daily Revenue Trend' }
+            }
+        }
+    });
+
+    // Weekly Chart
+    const weeklyCtx = document.getElementById('weeklyChart').getContext('2d');
+    new Chart(weeklyCtx, {
+        type: 'bar',
+        data: {
+            labels: weeklyLabels,
+            datasets: [{
+                label: 'Weekly Revenue ($)',
+                data: weeklyData,
+                backgroundColor: 'rgba(75, 192, 75, 0.5)',
+                borderColor: 'rgba(75, 192, 75, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                title: { display: true, text: 'Weekly Revenue Breakdown' }
+            }
+        }
+    });
+
+    // Monthly Chart
+    const monthlyCtx = document.getElementById('monthlyChart').getContext('2d');
+    new Chart(monthlyCtx, {
+        type: 'line',
+        data: {
+            labels: monthlyLabels,
+            datasets: [{
+                label: 'Monthly Revenue ($)',
+                data: monthlyData,
+                borderColor: 'rgb(192, 75, 192)',
+                backgroundColor: 'rgba(192, 75, 192, 0.1)',
+                tension: 0.1,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                title: { display: true, text: 'Monthly Revenue Trend' }
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

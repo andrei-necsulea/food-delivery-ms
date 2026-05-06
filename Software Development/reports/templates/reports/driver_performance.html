@@ -1,0 +1,102 @@
+{% extends 'base.html' %}
+
+{% block title %}Driver Performance Report{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1>Driver Performance Report</h1>
+    
+    <div class="row mb-4">
+        <div class="col-12">
+            <canvas id="performanceChart"></canvas>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            <table class="table table-striped">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Driver</th>
+                        <th>Total Deliveries</th>
+                        <th>Completed</th>
+                        <th>Failed</th>
+                        <th>Success Rate</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for driver in driver_stats %}
+                    <tr>
+                        <td><strong>{{ driver.driver.username }}</strong></td>
+                        <td>{{ driver.total_deliveries }}</td>
+                        <td><span class="badge bg-success">{{ driver.completed }}</span></td>
+                        <td><span class="badge bg-danger">{{ driver.failed }}</span></td>
+                        <td>
+                            <div class="progress">
+                                <div class="progress-bar bg-success" role="progressbar" 
+                                     style="width: {{ driver.success_rate }}%">
+                                    {{ driver.success_rate|floatformat:1 }}%
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center">No drivers found</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-12">
+            <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary">Back to Dashboard</a>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const drivers = {{ chart_drivers|safe }};
+    const completed = {{ chart_completed|safe }};
+    const failed = {{ chart_failed|safe }};
+
+    const ctx = document.getElementById('performanceChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: drivers,
+            datasets: [
+                {
+                    label: 'Completed',
+                    data: completed,
+                    backgroundColor: 'rgba(75, 192, 75, 0.5)',
+                    borderColor: 'rgba(75, 192, 75, 1)',
+                    borderWidth: 1
+                },
+                {
+                    label: 'Failed',
+                    data: failed,
+                    backgroundColor: 'rgba(192, 75, 75, 0.5)',
+                    borderColor: 'rgba(192, 75, 75, 1)',
+                    borderWidth: 1
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                title: { display: true, text: 'Driver Performance Comparison' }
+            },
+            scales: {
+                x: { stacked: false },
+                y: { stacked: false }
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,159 @@
+{% extends 'base.html' %}
+
+{% block title %}Admin Dashboard{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1>Admin Dashboard</h1>
+    
+    <!-- KPI Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card text-white bg-primary">
+                <div class="card-body">
+                    <h5 class="card-title">Total Orders</h5>
+                    <p class="card-text display-4">{{ total_orders }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-success">
+                <div class="card-body">
+                    <h5 class="card-title">Total Revenue</h5>
+                    <p class="card-text display-4">${{ total_revenue|floatformat:2 }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-info">
+                <div class="card-body">
+                    <h5 class="card-title">Completed Deliveries</h5>
+                    <p class="card-text display-4">{{ completed_deliveries }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-warning">
+                <div class="card-body">
+                    <h5 class="card-title">Active Drivers</h5>
+                    <p class="card-text display-4">{{ active_drivers }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Today's Metrics -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="alert alert-info">
+                <strong>Today's Orders:</strong> {{ today_orders }}
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="alert alert-success">
+                <strong>Today's Revenue:</strong> ${{ today_revenue|floatformat:2 }}
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="alert alert-warning">
+                <strong>Today's Completed:</strong> {{ today_completed }}
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts -->
+    <div class="row">
+        <div class="col-md-4">
+            <canvas id="ordersChart"></canvas>
+        </div>
+        <div class="col-md-4">
+            <canvas id="revenueChart"></canvas>
+        </div>
+        <div class="col-md-4">
+            <canvas id="completedChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Navigation Links -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <h4>Analytics Reports:</h4>
+            <a href="{% url 'driver_performance' %}" class="btn btn-outline-primary">Driver Performance</a>
+            <a href="{% url 'restaurant_sales' %}" class="btn btn-outline-success">Restaurant Sales</a>
+            <a href="{% url 'revenue_analytics' %}" class="btn btn-outline-info">Revenue Analytics</a>
+            <a href="{% url 'order_analytics' %}" class="btn btn-outline-warning">Order Analytics</a>
+            <a href="{% url 'delivery_analytics' %}" class="btn btn-outline-danger">Delivery Analytics</a>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const dates = {{ chart_dates|safe }};
+    const ordersData = {{ chart_orders|safe }};
+    const revenueData = {{ chart_revenue|safe }};
+    const completedData = {{ chart_completed|safe }};
+
+    // Orders Chart
+    const ordersCtx = document.getElementById('ordersChart').getContext('2d');
+    new Chart(ordersCtx, {
+        type: 'line',
+        data: {
+            labels: dates,
+            datasets: [{
+                label: 'Orders (7 days)',
+                data: ordersData,
+                borderColor: 'rgb(75, 192, 192)',
+                backgroundColor: 'rgba(75, 192, 192, 0.1)',
+                tension: 0.1
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: { title: { display: true, text: 'Orders Trend' } }
+        }
+    });
+
+    // Revenue Chart
+    const revenueCtx = document.getElementById('revenueChart').getContext('2d');
+    new Chart(revenueCtx, {
+        type: 'line',
+        data: {
+            labels: dates,
+            datasets: [{
+                label: 'Revenue (7 days)',
+                data: revenueData,
+                borderColor: 'rgb(75, 192, 75)',
+                backgroundColor: 'rgba(75, 192, 75, 0.1)',
+                tension: 0.1
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: { title: { display: true, text: 'Revenue Trend' } }
+        }
+    });
+
+    // Completed Chart
+    const completedCtx = document.getElementById('completedChart').getContext('2d');
+    new Chart(completedCtx, {
+        type: 'bar',
+        data: {
+            labels: dates,
+            datasets: [{
+                label: 'Completed Deliveries (7 days)',
+                data: completedData,
+                backgroundColor: 'rgba(192, 75, 192, 0.5)',
+                borderColor: 'rgba(192, 75, 192, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: { title: { display: true, text: 'Completed Deliveries' } }
+        }
+    });
+});
+</script>
+{% endblock %}
