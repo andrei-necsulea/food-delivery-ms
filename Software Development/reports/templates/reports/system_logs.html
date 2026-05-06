@@ -30,6 +30,29 @@
         </div>
     </form>
 
+    <form method="get" class="row g-3 mb-3">
+        <input type="hidden" name="log" value="{{ selected_log }}">
+        <div class="col-md-3">
+            <label class="form-label">Start Date</label>
+            <input type="date" name="start" class="form-control" value="{{ start }}">
+        </div>
+        <div class="col-md-3">
+            <label class="form-label">End Date</label>
+            <input type="date" name="end" class="form-control" value="{{ end }}">
+        </div>
+        <div class="col-md-3">
+            <label class="form-label">User ID</label>
+            <input type="text" name="user_id" class="form-control" value="{{ user_id }}" placeholder="user id">
+        </div>
+        <div class="col-md-3 d-flex align-items-end">
+            <label class="form-label visually-hidden">Action</label>
+            <input type="text" name="action" class="form-control" value="{{ action }}" placeholder="action type">
+        </div>
+        <div class="col-12 d-flex justify-content-end mt-2">
+            <button class="btn btn-secondary">Apply Filters</button>
+        </div>
+    </form>
+
     {% if log_exists %}
         <div class="card">
             <div class="card-header">

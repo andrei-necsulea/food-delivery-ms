@@ -12,6 +12,21 @@
         </div>
     </div>
     <div class="row mb-3">
+        <div class="col-md-8">
+            <form method="get" class="row g-2">
+                <div class="col-auto">
+                    <input type="date" name="start" class="form-control" value="{{ start }}" placeholder="Start">
+                </div>
+                <div class="col-auto">
+                    <input type="date" name="end" class="form-control" value="{{ end }}" placeholder="End">
+                </div>
+                <div class="col-auto">
+                    <button class="btn btn-primary">Filter</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <div class="row mb-3">
         <div class="col-md-6">
             <a href="{% url 'export_driver_performance' %}?format=csv" class="btn btn-outline-secondary">Export CSV</a>
             <a href="{% url 'export_driver_performance' %}?format=xlsx" class="btn btn-outline-secondary">Export XLSX</a>

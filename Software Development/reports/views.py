@@ -1,5 +1,6 @@
 
 from collections import deque
+import re
 from django.conf import settings
 from django.shortcuts import render
 from django.http import Http404
@@ -80,21 +81,34 @@ def dashboard(request):
 @role_required(['admin'])
 def driver_performance_report(request):
     """Driver performance analytics"""
+    # Optional date range filter
+    start_raw = request.GET.get('start')
+    end_raw = request.GET.get('end')
+    start_date = None
+    end_date = None
+    try:
+        if start_raw:
+            start_date = datetime.strptime(start_raw, '%Y-%m-%d').date()
+        if end_raw:
+            end_date = datetime.strptime(end_raw, '%Y-%m-%d').date()
+    except ValueError:
+        start_date = end_date = None
+
     drivers = User.objects.filter(role='driver')
 
     driver_stats = []
     for driver in drivers:
-        total = Delivery.objects.filter(driver=driver).count()
-        completed = Delivery.objects.filter(driver=driver, status='delivered').count()
-        failed = Delivery.objects.filter(driver=driver, status__in=['cancelled', 'failed']).count()
-        avg_duration = Delivery.objects.filter(
-            driver=driver,
-            status='delivered',
-            completed_at__isnull=False,
-        ).aggregate(
-            avg_delivery_duration=Avg(
-                ExpressionWrapper(F('completed_at') - F('created_at'), output_field=DurationField())
-            )
+        qs = Delivery.objects.filter(driver=driver)
+        if start_date:
+            qs = qs.filter(created_at__date__gte=start_date)
+        if end_date:
+            qs = qs.filter(created_at__date__lte=end_date)
+
+        total = qs.count()
+        completed = qs.filter(status='delivered').count()
+        failed = qs.filter(status__in=['cancelled', 'failed']).count()
+        avg_duration = qs.filter(status='delivered', completed_at__isnull=False).aggregate(
+            avg_delivery_duration=Avg(ExpressionWrapper(F('completed_at') - F('created_at'), output_field=DurationField()))
         )['avg_delivery_duration']
 
         driver_stats.append({
@@ -119,6 +133,8 @@ def driver_performance_report(request):
         'chart_drivers': json.dumps(driver_names),
         'chart_completed': json.dumps(completed_counts),
         'chart_failed': json.dumps(failed_counts),
+        'start': start_raw,
+        'end': end_raw,
     })
 
 
@@ -163,7 +179,7 @@ def export_driver_performance(request):
     return HttpResponseBadRequest('Unsupported format')
 
 
-@role_required(['admin'])
+@role_required(['admin','manager'])
 def export_report(request):
     """Generic report exporter. Params:
     - report: driver_performance | restaurant_sales | revenue | orders | deliveries
@@ -187,6 +203,10 @@ def export_report(request):
 
     headers = []
     rows = []
+
+    # Managers are only allowed to export their restaurant sales
+    if request.user.role == 'manager' and report_name != 'restaurant_sales':
+        return HttpResponseBadRequest('Managers may only export restaurant sales for their restaurant')
 
     if report_name == 'driver_performance':
         headers = ['Driver', 'Total Deliveries', 'Completed', 'Failed', 'Success Rate (%)', 'Avg Delivery Time']
@@ -213,7 +233,10 @@ def export_report(request):
 
     elif report_name == 'restaurant_sales':
         headers = ['Restaurant', 'Total Orders', 'Total Revenue', 'Avg Order Value']
-        restaurants = Restaurant.objects.all()
+        if request.user.role == 'manager':
+            restaurants = Restaurant.objects.filter(manager=request.user)
+        else:
+            restaurants = Restaurant.objects.all()
         for restaurant in restaurants:
             orders_q = Order.objects.filter(restaurant=restaurant)
             if start_date:
@@ -279,14 +302,36 @@ def export_report(request):
     return HttpResponseBadRequest('Unsupported format')
 
 
-@role_required(['admin'])
+@role_required(['admin', 'manager'])
 def restaurant_sales_report(request):
     """Restaurant sales and performance analytics"""
-    restaurants = Restaurant.objects.all()
+    # Optional date range filter
+    start_raw = request.GET.get('start')
+    end_raw = request.GET.get('end')
+    start_date = None
+    end_date = None
+    try:
+        if start_raw:
+            start_date = datetime.strptime(start_raw, '%Y-%m-%d').date()
+        if end_raw:
+            end_date = datetime.strptime(end_raw, '%Y-%m-%d').date()
+    except ValueError:
+        start_date = end_date = None
+
+    # Managers only see their own restaurant
+    if request.user.role == 'manager':
+        restaurants = Restaurant.objects.filter(manager=request.user)
+    else:
+        restaurants = Restaurant.objects.all()
 
     restaurant_stats = []
     for restaurant in restaurants:
         orders = Order.objects.filter(restaurant=restaurant)
+        if start_date:
+            orders = orders.filter(created_at__date__gte=start_date)
+        if end_date:
+            orders = orders.filter(created_at__date__lte=end_date)
+
         total_orders = orders.count()
         total_revenue = orders.aggregate(Sum('total_price'))['total_price__sum'] or 0
         avg_order_value = orders.aggregate(Avg('total_price'))['total_price__avg'] or 0
@@ -311,6 +356,8 @@ def restaurant_sales_report(request):
         'chart_restaurants': json.dumps(rest_names),
         'chart_orders': json.dumps(rest_orders),
         'chart_revenue': json.dumps(rest_revenue),
+        'start': start_raw,
+        'end': end_raw,
     })
 
 
@@ -376,27 +423,48 @@ def revenue_analytics(request):
 @role_required(['admin'])
 def order_analytics(request):
     """Order analytics: peak hours, customer segmentation, etc."""
-    today = timezone.now().date()  # noqa: F841
+    # Optional date range
+    start_raw = request.GET.get('start')
+    end_raw = request.GET.get('end')
+    start_date = None
+    end_date = None
+    try:
+        if start_raw:
+            start_date = datetime.strptime(start_raw, '%Y-%m-%d').date()
+        if end_raw:
+            end_date = datetime.strptime(end_raw, '%Y-%m-%d').date()
+    except ValueError:
+        start_date = end_date = None
 
     # Peak hours
     orders_by_hour = {}
     for i in range(24):
-        orders_by_hour[i] = Order.objects.filter(
-            created_at__hour=i
-        ).count()
+        qs_hour = Order.objects.filter(created_at__hour=i)
+        if start_date:
+            qs_hour = qs_hour.filter(created_at__date__gte=start_date)
+        if end_date:
+            qs_hour = qs_hour.filter(created_at__date__lte=end_date)
+        orders_by_hour[i] = qs_hour.count()
 
     hours = list(range(24))
     order_counts = [orders_by_hour[h] for h in hours]
 
     # Total metrics
-    total_orders = Order.objects.count()
-    avg_order_value = Order.objects.aggregate(Avg('total_price'))['total_price__avg'] or 0
+    orders_q = Order.objects.all()
+    if start_date:
+        orders_q = orders_q.filter(created_at__date__gte=start_date)
+    if end_date:
+        orders_q = orders_q.filter(created_at__date__lte=end_date)
+
+    total_orders = orders_q.count()
+    avg_order_value = orders_q.aggregate(Avg('total_price'))['total_price__avg'] or 0
     total_customers = User.objects.filter(role='client').count()
 
     # Orders by status
     status_dist = {}
     for status, _ in Order.STATUS_CHOICES:
-        status_dist[status] = Order.objects.filter(status=status).count()
+        qs_status = orders_q.filter(status=status)
+        status_dist[status] = qs_status.count()
 
     status_labels = [s[0].replace('_', ' ').title() for s in Order.STATUS_CHOICES]
     status_counts = [status_dist[s[0]] for s in Order.STATUS_CHOICES]
@@ -409,31 +477,59 @@ def order_analytics(request):
         'order_counts': json.dumps(order_counts),
         'status_labels': json.dumps(status_labels),
         'status_counts': json.dumps(status_counts),
+        'start': start_raw,
+        'end': end_raw,
     })
 
 
 @role_required(['admin'])
 def delivery_analytics(request):
     """Delivery analytics: success rate, avg time, etc."""
+    # Optional date range filter
+    start_raw = request.GET.get('start')
+    end_raw = request.GET.get('end')
+    start_date = None
+    end_date = None
+    try:
+        if start_raw:
+            start_date = datetime.strptime(start_raw, '%Y-%m-%d').date()
+        if end_raw:
+            end_date = datetime.strptime(end_raw, '%Y-%m-%d').date()
+    except ValueError:
+        start_date = end_date = None
+
     today = timezone.now().date()
 
     # Delivery statistics
-    total_deliveries = Delivery.objects.count()
-    completed = Delivery.objects.filter(status='delivered').count()
-    on_the_way = Delivery.objects.filter(status='on_the_way').count()
-    assigned = Delivery.objects.filter(status='assigned').count()
+    qs = Delivery.objects.all()
+    if start_date:
+        qs = qs.filter(created_at__date__gte=start_date)
+    if end_date:
+        qs = qs.filter(created_at__date__lte=end_date)
+
+    total_deliveries = qs.count()
+    completed = qs.filter(status='delivered').count()
+    on_the_way = qs.filter(status='on_the_way').count()
+    assigned = qs.filter(status='assigned').count()
     failed = total_deliveries - completed - on_the_way - assigned
 
-    # Last 30 days breakdown
-    thirty_days_ago = today - timedelta(days=30)
+    # Breakdown for period (default last 30 days if no range)
+    if start_date and end_date:
+        range_start = start_date
+        range_end = end_date
+    else:
+        range_end = today
+        range_start = today - timedelta(days=29)
+
     daily_completed = []
     daily_labels = []
 
-    for i in range(30):
-        date = thirty_days_ago + timedelta(days=i)
-        count = Delivery.objects.filter(status='delivered', created_at__date=date).count()
+    current = range_start
+    while current <= range_end:
+        count = Delivery.objects.filter(status='delivered', created_at__date=current).count()
         daily_completed.append(count)
-        daily_labels.append(str(date))
+        daily_labels.append(str(current))
+        current += timedelta(days=1)
 
     # Status distribution
     status_dist = {
@@ -478,6 +574,12 @@ def system_logs(request):
     if selected_log not in log_files:
         selected_log = 'app'
 
+    # Filters
+    start_raw = request.GET.get('start')
+    end_raw = request.GET.get('end')
+    user_id = request.GET.get('user_id')
+    action = request.GET.get('action')
+
     try:
         selected_lines = int(request.GET.get('lines', 200))
     except (TypeError, ValueError):
@@ -489,12 +591,64 @@ def system_logs(request):
     if not log_path.exists():
         raise Http404(f"Log file '{log_files[selected_log]}' not found")
 
-    log_content = ''.join(_read_last_lines(log_path, selected_lines))
+    # Parse date filters
+    start_date = None
+    end_date = None
+    try:
+        if start_raw:
+            start_date = datetime.strptime(start_raw, '%Y-%m-%d').date()
+        if end_raw:
+            end_date = datetime.strptime(end_raw, '%Y-%m-%d').date()
+    except ValueError:
+        start_date = end_date = None
+
+    # If any filters besides 'lines' are provided, scan full file and filter
+    filters_active = bool(start_date or end_date or user_id or action)
+
+    matched_lines = []
+    with open(log_path, 'r', encoding='utf-8', errors='replace') as fh:
+        if not filters_active:
+            # return last N lines
+            matched_lines = list(deque(fh, maxlen=selected_lines))
+        else:
+            for line in fh:
+                keep = True
+                # Date check: look for YYYY-MM-DD at line start
+                if start_date or end_date:
+                    m = re.match(r"^(\d{4}-\d{2}-\d{2})", line)
+                    if m:
+                        try:
+                            line_date = datetime.strptime(m.group(1), '%Y-%m-%d').date()
+                        except Exception:
+                            keep = False
+                    else:
+                        keep = False
+                    if keep and start_date and line_date < start_date:
+                        keep = False
+                    if keep and end_date and line_date > end_date:
+                        keep = False
+
+                if keep and user_id:
+                    if str(user_id) not in line:
+                        keep = False
+
+                if keep and action:
+                    if action.lower() not in line.lower():
+                        keep = False
+
+                if keep:
+                    matched_lines.append(line)
+
+    log_content = ''.join(matched_lines[-selected_lines:])
 
     return render(request, 'reports/system_logs.html', {
         'selected_log': selected_log,
         'selected_lines': selected_lines,
-        'log_exists': log_exists,
+        'log_exists': True,
         'log_content': log_content,
+        'start': start_raw,
+        'end': end_raw,
+        'user_id': user_id,
+        'action': action,
     })
 
