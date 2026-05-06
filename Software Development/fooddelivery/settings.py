@@ -156,6 +156,10 @@ MESSAGE_TAGS = {
     messages.ERROR: 'error',
 }
 
+# Email settings for password reset (development)
+EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend')
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'no-reply@fooddelivery.local')
+
 
 LOGGING = {
     'version': 1,
