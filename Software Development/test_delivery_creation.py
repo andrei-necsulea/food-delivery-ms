@@ -4,6 +4,7 @@ Test script: create complete test data for delivery
 """
 import os
 import sys
+
 import django
 
 # Setup Django
@@ -11,11 +12,12 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'fooddelivery.settings')
 sys.path.insert(0, os.path.dirname(__file__))
 django.setup()
 
-from accounts.models import User
-from orders.models import Order
-from restaurants.models import Restaurant
-from delivery.models import Delivery
-from menu.models import MenuItem
+# noqa: E402
+from accounts.models import User  # noqa: E402
+from orders.models import Order  # noqa: E402
+from restaurants.models import Restaurant  # noqa: E402
+from delivery.models import Delivery  # noqa: E402
+from menu.models import MenuItem  # noqa: E402
 
 # Create or get test manager for restaurant
 manager, _ = User.objects.get_or_create(
@@ -122,14 +124,14 @@ print(f"   Manager: {manager.username}")
 
 print("\n👨 DRIVER:")
 print(f"   Username: {driver.username}")
-print(f"   Password: test123 (set below)")
+print("   Password: test123 (set below)")
 print(f"   Email: {driver.email}")
 print(f"   Phone: {driver.phone_number}")
 print(f"   Vehicle: {driver.vehicle_type} ({driver.vehicle_plate})")
 
 print("\n👩 CUSTOMER:")
 print(f"   Username: {customer.username}")
-print(f"   Password: test123 (set below)")
+print("   Password: test123 (set below)")
 print(f"   Email: {customer.email}")
 print(f"   Phone: {customer.phone_number}")
 print(f"   Address: {customer.address}")
@@ -150,17 +152,17 @@ print("\n" + "=" * 60)
 print("🌐 LINKS:")
 print("=" * 60)
 print(f"   Route Page: http://127.0.0.1:8000/delivery/route/{order.id}/")
-print(f"   Delivery List: http://127.0.0.1:8000/delivery/")
-print(f"   Login: http://127.0.0.1:8000/login/")
+print("   Delivery List: http://127.0.0.1:8000/delivery/")
+print("   Login: http://127.0.0.1:8000/login/")
 
 print("\n" + "=" * 60)
 print("✅ CREDENTIALS (use these to login):")
 print("=" * 60)
-print(f"\n   Driver:")
-print(f"   └─ Username: test_driver")
-print(f"   └─ Password: test123")
-print(f"\n   Customer:")
-print(f"   └─ Username: test_customer")
-print(f"   └─ Password: test123")
-print(f"\n   Admin (if needed):")
-print(f"   └─ Access admin at: http://127.0.0.1:8000/admin/")
+print("\n   Driver:")
+print("   └─ Username: test_driver")
+print("   └─ Password: test123")
+print("\n   Customer:")
+print("   └─ Username: test_customer")
+print("   └─ Password: test123")
+print("\n   Admin (if needed):")
+print("   └─ Access admin at: http://127.0.0.1:8000/admin/")
