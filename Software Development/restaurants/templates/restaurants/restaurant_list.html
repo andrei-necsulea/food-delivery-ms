@@ -17,18 +17,29 @@
 <div class="card content-card mb-4">
     <div class="card-body">
         <form method="get" action="{% url 'restaurant_list' %}" class="row g-2" data-ajax-search="true" data-results-target="#restaurant-results">
-            <div class="col-md-10">
-                <input
-                    type="text"
-                    name="q"
-                    class="form-control"
-                    placeholder="Search restaurant, cuisine or dish..."
-                    value="{{ query }}"
-                >
-            </div>
-            <div class="col-md-2 d-grid">
-                <button type="submit" class="btn btn-dark">Search</button>
-            </div>
+                <div class="col-md-6">
+                    <input
+                        type="text"
+                        name="q"
+                        class="form-control"
+                        placeholder="Search restaurant, cuisine or dish..."
+                        value="{{ query }}"
+                    >
+                </div>
+                <div class="col-md-2">
+                    <select name="cuisine" class="form-select">
+                        <option value="">All Cuisines</option>
+                        {% for c in cuisine_choices %}
+                            <option value="{{ c }}" {% if cuisine == c %}selected{% endif %}>{{ c }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <input type="text" name="location" class="form-control" placeholder="Location (city, address)" value="{{ location }}">
+                </div>
+                <div class="col-md-2 d-grid">
+                    <button type="submit" class="btn btn-dark">Search</button>
+                </div>
         </form>
     </div>
 </div>
