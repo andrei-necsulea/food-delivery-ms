@@ -1,5 +1,5 @@
 from django.shortcuts import render, redirect, get_object_or_404
-from django.http import HttpResponseForbidden
+from django.http import HttpResponseForbidden, JsonResponse
 from django.contrib import messages
 from .models import Delivery
 from orders.models import Order
@@ -74,9 +74,53 @@ def route_info(request, order_id):
 
     delivery = Delivery.objects.filter(order=order).first()
 
+    if request.method == 'POST':
+        if request.user.role != 'driver' or not delivery or delivery.driver != request.user:
+            return HttpResponseForbidden('You are not allowed to update this route information.')
+
+        latitude = request.POST.get('current_latitude')
+        longitude = request.POST.get('current_longitude')
+
+        if latitude and longitude:
+            try:
+                delivery.current_latitude = float(latitude)
+                delivery.current_longitude = float(longitude)
+                delivery.save()
+                messages.success(request, 'Courier location updated successfully.')
+            except (ValueError, TypeError):
+                messages.error(request, 'Invalid coordinates provided. Please try again.')
+        else:
+            messages.error(request, 'Location update failed. Please allow browser location access or enter coordinates manually.')
+
+        return redirect('route_info', order_id=order.id)
+
     return render(request, 'delivery/route_info.html', {
         'order': order,
         'delivery': delivery,
+    })
+
+
+@role_required(['admin', 'driver', 'client'])
+def route_data(request, order_id):
+    order = get_object_or_404(Order, pk=order_id)
+
+    if request.user.role == 'client' and order.customer != request.user:
+        return HttpResponseForbidden('You are not allowed to view this route information.')
+
+    delivery = Delivery.objects.filter(order=order).first()
+    if not delivery:
+        return JsonResponse({'error': 'No delivery record found.'}, status=404)
+
+    return JsonResponse({
+        'order_id': order.id,
+        'delivery_id': delivery.id,
+        'status': delivery.status,
+        'current_latitude': delivery.current_latitude,
+        'current_longitude': delivery.current_longitude,
+        'driver': {
+            'id': delivery.driver.id if delivery.driver else None,
+            'username': delivery.driver.username if delivery.driver else None,
+        }
     })
 
 

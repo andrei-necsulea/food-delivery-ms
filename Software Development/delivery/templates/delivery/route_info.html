@@ -57,6 +57,11 @@
                                 <li class="list-group-item">On The Way</li>
                                 <li class="list-group-item">Delivered</li>
                             </ul>
+
+                            {% if delivery.current_latitude and delivery.current_longitude %}
+                                <hr class="my-4">
+                                <div id="routeMap" style="height: 320px; border-radius: 16px; overflow: hidden;"></div>
+                            {% endif %}
                         {% elif delivery %}
                             <p class="text-muted">A delivery record exists, but no courier has been assigned yet.</p>
                         {% else %}
@@ -86,6 +91,24 @@
                             {% else %}
                                 <p class="text-muted">Courier location is not available yet.</p>
                             {% endif %}
+
+                            {% if user.role == 'driver' and delivery.driver == user %}
+                                <hr>
+                                <form method="post" class="mt-3">
+                                    {% csrf_token %}
+                                    <div class="mb-3">
+                                        <button type="button" class="btn btn-outline-primary" id="locateButton">
+                                            Use browser location
+                                        </button>
+                                    </div>
+                                    <input type="hidden" name="current_latitude" id="currentLatitude">
+                                    <input type="hidden" name="current_longitude" id="currentLongitude">
+                                    <div class="alert alert-secondary d-none" id="geolocationStatus" role="status"></div>
+                                    <button type="submit" class="btn btn-success" id="submitLocation" disabled>
+                                        Send location update
+                                    </button>
+                                </form>
+                            {% endif %}
                         {% else %}
                             <p class="text-muted">No courier assigned to this order yet.</p>
                         {% endif %}
@@ -95,4 +118,118 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-o9N1j7kG7rkw8BXtA6DWgZB7sx14D4Jg7njvHYwG3Zo="
+      crossorigin=""/>
+<style>
+    #routeMap {
+        min-height: 320px;
+        width: 100%;
+        border-radius: 16px;
+        border: 1px solid rgba(0,0,0,0.08);
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-o9N1j7kG7rkw8BXtA6DWgZB7sx14D4Jg7njvHYwG3Zo="
+        crossorigin=""></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        var routeDataUrl = "{% url 'route_data' order.id %}";
+        var map = null;
+        var marker = null;
+        var locateButton = document.getElementById('locateButton');
+        var statusElement = document.getElementById('geolocationStatus');
+        var latitudeInput = document.getElementById('currentLatitude');
+        var longitudeInput = document.getElementById('currentLongitude');
+        var submitButton = document.getElementById('submitLocation');
+
+        function initializeMap(latitude, longitude) {
+            map = L.map('routeMap').setView([latitude, longitude], 14);
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+                maxZoom: 19,
+            }).addTo(map);
+
+            marker = L.marker([latitude, longitude]).addTo(map)
+                .bindPopup('Courier location')
+                .openPopup();
+        }
+
+        function updateMapMarker(latitude, longitude) {
+            if (!map) {
+                initializeMap(latitude, longitude);
+                return;
+            }
+
+            var latLng = [latitude, longitude];
+            marker.setLatLng(latLng);
+            map.panTo(latLng);
+            marker.getPopup().setContent('Courier location updated');
+        }
+
+        function fetchRouteData() {
+            fetch(routeDataUrl, { credentials: 'same-origin' })
+                .then(function(response) {
+                    if (!response.ok) {
+                        throw new Error('Unable to fetch location data.');
+                    }
+                    return response.json();
+                })
+                .then(function(data) {
+                    if (data.current_latitude && data.current_longitude) {
+                        updateMapMarker(data.current_latitude, data.current_longitude);
+                    }
+                })
+                .catch(function(error) {
+                    console.warn('Route data refresh failed:', error);
+                });
+        }
+
+        {% if delivery and delivery.current_latitude and delivery.current_longitude %}
+            initializeMap({{ delivery.current_latitude }}, {{ delivery.current_longitude }});
+            setInterval(fetchRouteData, 10000);
+        {% endif %}
+
+        if (!locateButton) {
+            return;
+        }
+
+        locateButton.addEventListener('click', function () {
+            if (!navigator.geolocation) {
+                statusElement.classList.remove('d-none', 'alert-secondary');
+                statusElement.classList.add('alert-danger');
+                statusElement.textContent = 'Geolocation is not supported by your browser.';
+                return;
+            }
+
+            statusElement.classList.remove('d-none', 'alert-secondary', 'alert-danger');
+            statusElement.classList.add('alert-info');
+            statusElement.textContent = 'Detecting your current location...';
+
+            navigator.geolocation.getCurrentPosition(function (position) {
+                latitudeInput.value = position.coords.latitude.toFixed(6);
+                longitudeInput.value = position.coords.longitude.toFixed(6);
+                statusElement.classList.remove('alert-danger');
+                statusElement.classList.add('alert-success');
+                statusElement.textContent = 'Location found. Click Send location update to save it.';
+                submitButton.disabled = false;
+            }, function (error) {
+                statusElement.classList.remove('alert-info');
+                statusElement.classList.add('alert-danger');
+                statusElement.textContent = 'Unable to determine location. Please allow location access and try again.';
+            }, {
+                enableHighAccuracy: true,
+                timeout: 15000,
+                maximumAge: 10000
+            });
+        });
+    });
+</script>
 {% endblock %}

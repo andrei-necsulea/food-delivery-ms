@@ -66,6 +66,20 @@
                             </div>
                         </div>
 
+                        {% if user.role == 'driver' %}
+                            <hr>
+                            <div class="row">
+                                <div class="col-sm-6">
+                                    <strong>Vehicle Type:</strong><br>
+                                    {{ user.vehicle_type|default:"Not provided" }}
+                                </div>
+                                <div class="col-sm-6">
+                                    <strong>Vehicle Plate:</strong><br>
+                                    {{ user.vehicle_plate|default:"Not provided" }}
+                                </div>
+                            </div>
+                        {% endif %}
+
                         <hr>
 
                         <div class="row">
