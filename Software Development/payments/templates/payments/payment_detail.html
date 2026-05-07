@@ -50,6 +50,11 @@
                     <div class="alert alert-danger">
                         {{ payment.failure_reason|default:'The payment provider reported a failure.' }}
                     </div>
+                    {% if not can_manage %}
+                        <div class="alert alert-info">
+                            <strong>Payment Failed</strong> — You can retry this payment using the button below.
+                        </div>
+                    {% endif %}
                 {% elif payment.status == 'paid' %}
                     <div class="alert alert-success">
                         Payment has been confirmed successfully.
@@ -66,6 +71,13 @@
                             {% csrf_token %}
                             <input type="hidden" name="failure_reason" value="Provider indicated unsuccessful transaction.">
                             <button class="btn btn-outline-danger">Mark as Failed</button>
+                        </form>
+                    </div>
+                {% elif not can_manage and payment.method == 'online' and payment.status == 'failed' %}
+                    <div class="d-flex gap-2 flex-wrap">
+                        <form method="post" action="{% url 'payment_retry' payment.id %}">
+                            {% csrf_token %}
+                            <button class="btn btn-primary">Retry Payment</button>
                         </form>
                     </div>
                 {% endif %}

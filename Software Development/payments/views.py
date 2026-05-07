@@ -72,3 +72,33 @@ def payment_fail(request, pk):
 	logger.error('Payment failed for order #%s payment_id=%s transaction_id=%s reason=%s', payment.order_id, payment.id, payment.transaction_id, failure_reason)
 	messages.error(request, f'Payment for order #{payment.order_id} marked as Failed.')
 	return redirect('payment_detail', pk=payment.id)
+
+
+@role_required(['client'])
+def payment_retry(request, pk):
+	payment = get_object_or_404(Payment, pk=pk)
+
+	if payment.order.customer_id != request.user.id:
+		raise Http404('Payment not found')
+
+	if payment.method != Payment.METHOD_ONLINE:
+		messages.error(request, 'Only online payments can be retried.')
+		return redirect('payment_detail', pk=payment.id)
+
+	if payment.status != Payment.STATUS_FAILED:
+		messages.error(request, 'Only failed payments can be retried.')
+		return redirect('payment_detail', pk=payment.id)
+
+	if request.method != 'POST':
+		return redirect('payment_detail', pk=payment.id)
+
+	payment.status = Payment.STATUS_PENDING_PAYMENT
+	payment.failed_at = None
+	payment.failure_reason = None
+	payment.paid_at = None
+	payment.transaction_id = f"TXN-{payment.order.id}-{timezone.now().strftime('%Y%m%d%H%M%S')}-{request.user.id}"
+	payment.save(update_fields=['status', 'failed_at', 'failure_reason', 'paid_at', 'transaction_id', 'updated_at'])
+
+	logger.info('Payment retried for order #%s payment_id=%s new_transaction_id=%s', payment.order_id, payment.id, payment.transaction_id)
+	messages.success(request, f'Payment for order #{payment.order_id} has been reset for retry. Please try again.')
+	return redirect('payment_detail', pk=payment.id)
