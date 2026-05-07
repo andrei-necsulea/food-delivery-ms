@@ -1,6 +1,9 @@
+import logging
+
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponseForbidden
 from django.contrib import messages
+from django.utils import timezone
 
 from .models import Order, Cart, CartItem, OrderItem
 from menu.models import MenuItem
@@ -8,34 +11,61 @@ from accounts.models import User
 from restaurants.models import Restaurant
 from accounts.decorators import role_required
 from notifications.models import Notification
+from payments.models import Payment
+
+
+logger = logging.getLogger('fooddelivery')
+
+
+def _sync_payment_for_order(order, payment_method):
+    payment = Payment.objects.filter(order=order).first()
+    if payment is None:
+        payment = Payment(order=order, method=payment_method)
+
+    payment.method = payment_method
+
+    if payment_method == Order.PAYMENT_METHOD_ONLINE:
+        if payment.status != Payment.STATUS_PAID:
+            payment.status = Payment.STATUS_PENDING_PAYMENT
+        if not payment.transaction_id:
+            payment.transaction_id = f"TXN-{order.id}-{timezone.now().strftime('%Y%m%d%H%M%S')}"
+    else:
+        payment.status = Payment.STATUS_UNPAID
+        payment.transaction_id = None
+        payment.paid_at = None
+        payment.failed_at = None
+        payment.failure_reason = None
+
+    payment.save()
+    return payment
 
 
 @role_required(['admin', 'manager', 'client', 'driver'])
 def order_list(request):
     if request.user.role == 'admin':
         orders = Order.objects.select_related(
-            'customer', 'restaurant'
+            'customer', 'restaurant', 'payment'
         ).prefetch_related(
             'items', 'items__menu_item'
         ).all()
 
     elif request.user.role == 'client':
         orders = Order.objects.select_related(
-            'customer', 'restaurant'
+            'customer', 'restaurant', 'payment'
         ).prefetch_related(
             'items', 'items__menu_item'
         ).filter(customer=request.user)
 
     elif request.user.role == 'manager':
         orders = Order.objects.select_related(
-            'customer', 'restaurant'
+            'customer', 'restaurant', 'payment'
         ).prefetch_related(
             'items', 'items__menu_item'
         ).filter(restaurant__manager=request.user)
 
     elif request.user.role == 'driver':
         orders = Order.objects.select_related(
-            'customer', 'restaurant'
+            'customer', 'restaurant', 'payment'
         ).prefetch_related(
             'items', 'items__menu_item'
         ).filter(delivery__driver=request.user)
@@ -62,6 +92,7 @@ def order_update(request, pk):
             order.phone_number = request.POST.get('phone_number', '').strip()
             order.payment_method = request.POST.get('payment_method', Order.PAYMENT_METHOD_CASH)
             order.save()
+            _sync_payment_for_order(order, order.payment_method)
 
             messages.success(request, 'Order updated successfully.')
             return redirect('order_list')
@@ -72,7 +103,7 @@ def order_update(request, pk):
             'restaurants': restaurants,
             'admin_mode': True,
             'manager_mode': False,
-            'payment_methods': [choice[0] for choice in Order.PAYMENT_METHOD_CHOICES],
+            'payment_methods': Order.PAYMENT_METHOD_CHOICES,
             'allowed_statuses': [choice[0] for choice in Order.STATUS_CHOICES],
         })
 
@@ -89,6 +120,7 @@ def order_update(request, pk):
             order.phone_number = request.POST.get('phone_number', '').strip()
             order.payment_method = request.POST.get('payment_method', Order.PAYMENT_METHOD_CASH)
             order.save()
+            _sync_payment_for_order(order, order.payment_method)
 
             messages.success(request, 'Your order has been updated successfully.')
             return redirect('order_list')
@@ -97,7 +129,7 @@ def order_update(request, pk):
             'order': order,
             'client_mode': True,
             'client_readonly_mode': False,
-            'payment_methods': [choice[0] for choice in Order.PAYMENT_METHOD_CHOICES],
+            'payment_methods': Order.PAYMENT_METHOD_CHOICES,
         })
 
     order = get_object_or_404(Order, pk=pk, restaurant__manager=request.user)
@@ -110,8 +142,18 @@ def order_update(request, pk):
             messages.error(request, 'Invalid status transition for manager.')
             return HttpResponseForbidden("Invalid status transition for manager.")
 
+        payment = Payment.objects.filter(order=order).first()
+        if (
+            new_status == Order.STATUS_ACCEPTED
+            and order.payment_method == Order.PAYMENT_METHOD_ONLINE
+            and (payment is None or payment.status != Payment.STATUS_PAID)
+        ):
+            messages.error(request, 'This online order cannot be accepted until payment is confirmed as Paid.')
+            return HttpResponseForbidden('Online payment must be paid before acceptance.')
+
         order.status = new_status
         order.save()
+        _sync_payment_for_order(order, order.payment_method)
 
         # Create notification for customer about status change
         status_messages = {
@@ -138,6 +180,7 @@ def order_update(request, pk):
         'order': order,
         'manager_mode': True,
         'allowed_statuses': order.get_allowed_next_statuses_for_manager(),
+        'payment_methods': Order.PAYMENT_METHOD_CHOICES,
     })
 
 
@@ -289,7 +332,11 @@ def delivery_details(request):
         messages.error(request, 'Your cart is empty.')
         return redirect('cart_detail')
 
-    payment_methods = [Order.PAYMENT_METHOD_CASH, Order.PAYMENT_METHOD_CARD]
+    payment_methods = [
+        (Order.PAYMENT_METHOD_CASH, 'Cash on Delivery'),
+        (Order.PAYMENT_METHOD_ONLINE, 'Online Payment'),
+    ]
+    payment_method_values = [value for value, _ in payment_methods]
 
     if request.method == 'POST':
         delivery_address = request.POST.get('delivery_address', '').strip()
@@ -320,7 +367,7 @@ def delivery_details(request):
                 'payment_methods': payment_methods,
             })
 
-        if payment_method not in payment_methods:
+        if payment_method not in payment_method_values:
             payment_method = Order.PAYMENT_METHOD_CASH
 
         # Store delivery details in session
@@ -355,12 +402,13 @@ def checkout(request):
     delivery_address = request.session.get('delivery_address', '')
     phone_number = request.session.get('phone_number', '')
     payment_method = request.session.get('payment_method', Order.PAYMENT_METHOD_CASH)
+    payment_method_values = [Order.PAYMENT_METHOD_CASH, Order.PAYMENT_METHOD_ONLINE]
 
     if not delivery_address or not phone_number:
         messages.error(request, 'Please provide delivery details before checkout.')
         return redirect('delivery_details')
 
-    if payment_method not in [Order.PAYMENT_METHOD_CASH, Order.PAYMENT_METHOD_CARD]:
+    if payment_method not in payment_method_values:
         payment_method = Order.PAYMENT_METHOD_CASH
 
     order = Order.objects.create(
@@ -371,6 +419,27 @@ def checkout(request):
         delivery_address=delivery_address,
         phone_number=phone_number,
         payment_method=payment_method,
+    )
+
+    payment_status = Payment.STATUS_UNPAID
+    transaction_id = None
+    if payment_method == Order.PAYMENT_METHOD_ONLINE:
+        payment_status = Payment.STATUS_PENDING_PAYMENT
+        transaction_id = f"TXN-{order.id}-{timezone.now().strftime('%Y%m%d%H%M%S')}-{request.user.id}"
+
+    Payment.objects.create(
+        order=order,
+        method=payment_method,
+        status=payment_status,
+        transaction_id=transaction_id,
+    )
+
+    logger.info(
+        'Payment initiated for order #%s method=%s status=%s transaction_id=%s',
+        order.id,
+        payment_method,
+        payment_status,
+        transaction_id,
     )
 
     for item in cart_items:
@@ -403,4 +472,6 @@ def checkout(request):
     )
 
     messages.success(request, 'Order placed successfully.')
+    if payment_method == Order.PAYMENT_METHOD_ONLINE:
+        return redirect('payment_detail', pk=order.payment.id)
     return redirect('order_list')

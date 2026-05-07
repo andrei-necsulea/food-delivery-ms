@@ -1,0 +1,83 @@
+{% extends 'base.html' %}
+
+{% block title %}Payment Details{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card content-card">
+            <div class="card-body p-4">
+                <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
+                    <div>
+                        <h1 class="h3 fw-bold mb-1">Payment Details</h1>
+                        <p class="text-muted mb-0">Order #{{ payment.order.id }}</p>
+                    </div>
+                    <span class="badge bg-primary status-badge">{{ payment.get_status_display }}</span>
+                </div>
+
+                <div class="row g-3 mb-4">
+                    <div class="col-md-6">
+                        <div class="p-3 border rounded-3">
+                            <div class="text-muted small">Payment Method</div>
+                            <div class="fw-semibold">{{ payment.get_method_display }}</div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="p-3 border rounded-3">
+                            <div class="text-muted small">Transaction ID</div>
+                            <div class="fw-semibold">{{ payment.transaction_id|default:'-' }}</div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="p-3 border rounded-3">
+                            <div class="text-muted small">Created At</div>
+                            <div class="fw-semibold">{{ payment.created_at }}</div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="p-3 border rounded-3">
+                            <div class="text-muted small">Updated At</div>
+                            <div class="fw-semibold">{{ payment.updated_at }}</div>
+                        </div>
+                    </div>
+                </div>
+
+                {% if payment.method == 'online' and payment.status == 'pending_payment' %}
+                    <div class="alert alert-warning">
+                        Online payment is pending confirmation from the payment provider.
+                    </div>
+                {% elif payment.status == 'failed' %}
+                    <div class="alert alert-danger">
+                        {{ payment.failure_reason|default:'The payment provider reported a failure.' }}
+                    </div>
+                {% elif payment.status == 'paid' %}
+                    <div class="alert alert-success">
+                        Payment has been confirmed successfully.
+                    </div>
+                {% endif %}
+
+                {% if can_manage and payment.method == 'online' and payment.status != 'paid' %}
+                    <div class="d-flex gap-2 flex-wrap">
+                        <form method="post" action="{% url 'payment_confirm' payment.id %}">
+                            {% csrf_token %}
+                            <button class="btn btn-success">Mark as Paid</button>
+                        </form>
+                        <form method="post" action="{% url 'payment_fail' payment.id %}">
+                            {% csrf_token %}
+                            <input type="hidden" name="failure_reason" value="Provider indicated unsuccessful transaction.">
+                            <button class="btn btn-outline-danger">Mark as Failed</button>
+                        </form>
+                    </div>
+                {% endif %}
+
+                <div class="mt-4 d-flex justify-content-between flex-wrap gap-2">
+                    <a href="{% url 'order_list' %}" class="btn btn-outline-secondary">Back to Orders</a>
+                    {% if can_manage %}
+                        <a href="/admin/payments/payment/{{ payment.id }}/change/" class="btn btn-outline-primary">Edit in Admin</a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

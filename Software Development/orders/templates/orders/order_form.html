@@ -112,9 +112,9 @@
                         <div class="mb-3">
                             <label class="form-label">Payment Method</label>
                             <select name="payment_method" class="form-select" required>
-                                {% for method in payment_methods %}
-                                    <option value="{{ method }}" {% if order.payment_method == method %}selected{% endif %}>
-                                        {{ method|title }}
+                                {% for value,label in payment_methods %}
+                                    <option value="{{ value }}" {% if order.payment_method == value %}selected{% endif %}>
+                                        {{ label }}
                                     </option>
                                 {% endfor %}
                             </select>
@@ -132,7 +132,7 @@
 
                         <div class="mb-3">
                             <label class="form-label">Payment Method</label>
-                            <input type="text" class="form-control" value="{{ order.payment_method|title }}" disabled>
+                            <input type="text" class="form-control" value="{{ order.get_payment_method_display }}" disabled>
                         </div>
                     {% endif %}
 

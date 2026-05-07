@@ -73,13 +73,13 @@
                     <div class="mb-4">
                         <label class="form-label fw-semibold">Payment Method <span class="text-danger">*</span></label>
                         <select name="payment_method" class="form-select" required>
-                            {% for method in payment_methods %}
-                                <option value="{{ method }}" {% if payment_method == method %}selected{% endif %}>
-                                    {{ method|title }}
+                            {% for value,label in payment_methods %}
+                                <option value="{{ value }}" {% if payment_method == value %}selected{% endif %}>
+                                    {{ label }}
                                 </option>
                             {% endfor %}
                         </select>
-                        <small class="text-muted">Select how you want to pay for this order.</small>
+                        <small class="text-muted">Select Cash on Delivery or Online Payment.</small>
                     </div>
 
                     <div class="d-flex gap-3">
