@@ -65,34 +65,56 @@
                     {% endif %}
 
                     {% if admin_mode or client_mode %}
-                        <div class="mb-3">
-                            <label class="form-label">Delivery Address</label>
-                            <input
-                                type="text"
-                                name="delivery_address"
-                                class="form-control"
-                                value="{% if order %}{{ order.delivery_address }}{% endif %}"
-                                required
-                            >
-                        </div>
+                        {% if client_readonly_mode %}
+                            <div class="mb-3">
+                                <label class="form-label">Delivery Address</label>
+                                <input
+                                    type="text"
+                                    class="form-control"
+                                    value="{% if order %}{{ order.delivery_address }}{% endif %}"
+                                    disabled
+                                >
+                            </div>
 
-                        <div class="mb-3">
-                            <label class="form-label">Phone Number</label>
-                            <input
-                                type="text"
-                                name="phone_number"
-                                class="form-control"
-                                value="{% if order %}{{ order.phone_number }}{% endif %}"
-                                required
-                            >
-                        </div>
+                            <div class="mb-3">
+                                <label class="form-label">Phone Number</label>
+                                <input
+                                    type="text"
+                                    class="form-control"
+                                    value="{% if order %}{{ order.phone_number }}{% endif %}"
+                                    disabled
+                                >
+                            </div>
+                        {% else %}
+                            <div class="mb-3">
+                                <label class="form-label">Delivery Address</label>
+                                <input
+                                    type="text"
+                                    name="delivery_address"
+                                    class="form-control"
+                                    value="{% if order %}{{ order.delivery_address }}{% endif %}"
+                                    required
+                                >
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Phone Number</label>
+                                <input
+                                    type="text"
+                                    name="phone_number"
+                                    class="form-control"
+                                    value="{% if order %}{{ order.phone_number }}{% endif %}"
+                                    required
+                                >
+                            </div>
+                        {% endif %}
 
                         <div class="mb-3">
                             <label class="form-label">Payment Method</label>
                             <select name="payment_method" class="form-select" required>
-                                {% for method in payment_methods %}
-                                    <option value="{{ method }}" {% if order.payment_method == method %}selected{% endif %}>
-                                        {{ method|title }}
+                                {% for value,label in payment_methods %}
+                                    <option value="{{ value }}" {% if order.payment_method == value %}selected{% endif %}>
+                                        {{ label }}
                                     </option>
                                 {% endfor %}
                             </select>
@@ -110,7 +132,7 @@
 
                         <div class="mb-3">
                             <label class="form-label">Payment Method</label>
-                            <input type="text" class="form-control" value="{{ order.payment_method|title }}" disabled>
+                            <input type="text" class="form-control" value="{{ order.get_payment_method_display }}" disabled>
                         </div>
                     {% endif %}
 

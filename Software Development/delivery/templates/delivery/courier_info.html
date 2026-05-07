@@ -34,6 +34,18 @@
                         {{ courier.phone_number }}
                     </div>
                     {% endif %}
+                    {% if courier.vehicle_type %}
+                    <div class="col-12 mb-2">
+                        <strong><i class="fas fa-motorcycle"></i> Vehicle:</strong><br>
+                        {{ courier.vehicle_type }}
+                    </div>
+                    {% endif %}
+                    {% if courier.vehicle_plate %}
+                    <div class="col-12 mb-2">
+                        <strong><i class="fas fa-id-badge"></i> Plate:</strong><br>
+                        {{ courier.vehicle_plate }}
+                    </div>
+                    {% endif %}
                     {% if courier.date_of_birth %}
                     <div class="col-12 mb-2">
                         <strong><i class="fas fa-birthday-cake"></i> Date of Birth:</strong><br>

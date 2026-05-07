@@ -1,0 +1,53 @@
+{% extends 'base.html' %}
+
+{% block title %}Help{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <div class="hero-box mb-4">
+                <h1 class="display-6 fw-bold mb-2">Help Center</h1>
+                <p class="mb-0">Quick answers for clients using the food delivery platform.</p>
+            </div>
+
+            <div class="card content-card">
+                <div class="card-body p-4">
+                    <div class="accordion" id="helpAccordion">
+                        {% for faq in faqs %}
+                            <div class="accordion-item">
+                                <h2 class="accordion-header" id="heading{{ forloop.counter }}">
+                                    <button class="accordion-button {% if not forloop.first %}collapsed{% endif %}" type="button" data-bs-toggle="collapse" data-bs-target="#collapse{{ forloop.counter }}" aria-expanded="{% if forloop.first %}true{% else %}false{% endif %}" aria-controls="collapse{{ forloop.counter }}">
+                                        {{ faq.question }}
+                                    </button>
+                                </h2>
+                                <div id="collapse{{ forloop.counter }}" class="accordion-collapse collapse {% if forloop.first %}show{% endif %}" aria-labelledby="heading{{ forloop.counter }}" data-bs-parent="#helpAccordion">
+                                    <div class="accordion-body">
+                                        {{ faq.answer }}
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="card content-card mt-4">
+                <div class="card-body p-4">
+                    <h2 class="h5 fw-bold mb-3">Common actions</h2>
+                    <ul class="mb-0">
+                        <li>Check <strong>My Orders</strong> for status and tracking.</li>
+                        <li>Use <strong>My Cart</strong> to review or change items before checkout.</li>
+                        <li>Go to <strong>Restaurants</strong> to browse by cuisine or location.</li>
+                        <li>Read notifications for order updates and delivery changes.</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="text-end mt-4">
+                <a href="{% url 'home' %}" class="btn btn-outline-secondary">Back to Home</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

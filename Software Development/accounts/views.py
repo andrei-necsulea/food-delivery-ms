@@ -81,6 +81,35 @@ def update_profile_view(request):
     return render(request, 'accounts/update_profile.html', {'form': form})
 
 
+@role_required(['client'])
+def help_view(request):
+    """Client help page with common questions and answers"""
+    faqs = [
+        {
+            'question': 'How do I place an order?',
+            'answer': 'Open a restaurant, add menu items to your cart, then go to My Cart and complete checkout.',
+        },
+        {
+            'question': 'Can I change my order after checkout?',
+            'answer': 'You can modify the order only while it is still in Created status. After acceptance, changes are no longer allowed.',
+        },
+        {
+            'question': 'How do I track my delivery?',
+            'answer': 'Open My Orders and click Track on an active order to see route and delivery status updates.',
+        },
+        {
+            'question': 'What payment methods are available?',
+            'answer': 'Depending on the restaurant and checkout settings, you can pay by cash, card, or online payment.',
+        },
+        {
+            'question': 'What should I do if I do not receive my order?',
+            'answer': 'Check the order status first. If it is delayed or marked delivered but you did not receive it, contact support or the restaurant manager through the platform.',
+        },
+    ]
+
+    return render(request, 'accounts/help.html', {'faqs': faqs})
+
+
 def logout_view(request):
     logout(request)
     return redirect('home')

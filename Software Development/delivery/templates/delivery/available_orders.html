@@ -1,0 +1,64 @@
+{% extends 'base.html' %}
+
+{% block title %}Available Orders{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center page-header">
+    <div>
+        <h1 class="fw-bold mb-1">Available Orders</h1>
+        <p class="text-muted mb-0">Choose a pending order to deliver.</p>
+    </div>
+</div>
+
+<div class="card content-card">
+    <div class="card-body">
+        {% if orders %}
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Order</th>
+                            <th>Customer</th>
+                            <th>Restaurant</th>
+                            <th>Status</th>
+                            <th class="text-end">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for order in orders %}
+                            <tr>
+                                <td>#{{ order.id }}</td>
+                                <td>{{ order.customer.username }}</td>
+                                <td>
+                                    {% if order.restaurant %}
+                                        {{ order.restaurant.name }}
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if order.status == 'accepted' %}
+                                        <span class="badge bg-secondary status-badge">Accepted</span>
+                                    {% elif order.status == 'preparing' %}
+                                        <span class="badge bg-warning text-dark status-badge">Preparing</span>
+                                    {% elif order.status == 'ready' %}
+                                        <span class="badge bg-info text-dark status-badge">Ready</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end">
+                                    <a href="{% url 'take_order' order.id %}" class="btn btn-sm btn-primary">Take Order</a>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="text-center py-5">
+                <h4>No available orders</h4>
+                <p class="text-muted">There are no orders ready for pickup at the moment.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

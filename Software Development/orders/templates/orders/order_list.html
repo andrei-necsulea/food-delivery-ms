@@ -23,6 +23,7 @@
                         <th>Restaurant</th>
                         <th>Products</th>
                         <th>Total Price</th>
+                        <th>Payment</th>
                         <th>Status</th>
                         <th class="text-end">Actions</th>
                     </tr>
@@ -64,6 +65,19 @@
                         <td>{{ order.total_price }} lei</td>
 
                         <td>
+                            {% if order.payment %}
+                                <div class="d-flex flex-column gap-1">
+                                    <span class="badge bg-light text-dark border">{{ order.get_payment_method_display }}</span>
+                                    <span class="badge {% if order.payment.status == 'paid' %}bg-success{% elif order.payment.status == 'failed' %}bg-danger{% elif order.payment.status == 'pending_payment' %}bg-warning text-dark{% else %}bg-secondary{% endif %}">
+                                        {{ order.payment.get_status_display }}
+                                    </span>
+                                </div>
+                            {% else %}
+                                <span class="text-muted">No payment</span>
+                            {% endif %}
+                        </td>
+
+                        <td>
                             {% if order.status == 'created' %}
                                 <span class="badge bg-secondary status-badge">Created</span>
                             {% elif order.status == 'accepted' %}
@@ -83,6 +97,9 @@
 
                         <td class="text-end">
                             {% if user.role == 'admin' %}
+                                {% if order.payment %}
+                                    <a href="{% url 'payment_detail' order.payment.id %}" class="btn btn-sm btn-outline-primary me-1">Payment</a>
+                                {% endif %}
                                 <a href="{% url 'order_update' order.id %}" class="btn btn-sm btn-warning">Edit</a>
                                 <a href="{% url 'order_delete' order.id %}" class="btn btn-sm btn-danger">Delete</a>
 
@@ -92,9 +109,17 @@
                                 </a>
 
                             {% elif user.role == 'client' %}
+                                {% if order.payment %}
+                                    <a href="{% url 'payment_detail' order.payment.id %}" class="btn btn-sm btn-outline-primary me-1">Payment</a>
+                                {% endif %}
                                 {% if order.status == 'created' %}
-                                    <a href="{% url 'order_update' order.id %}" class="btn btn-sm btn-warning">
-                                        Modify
+                                    <a href="{% url 'order_update' order.id %}" class="btn btn-sm btn-warning me-1">Modify</a>
+                                    <a href="{% url 'order_cancel' order.id %}" class="btn btn-sm btn-danger">
+                                        Cancel
+                                    </a>
+                                {% elif order.status != 'cancelled' %}
+                                    <a href="{% url 'route_info' order.id %}" class="btn btn-sm btn-primary me-1">
+                                        Track
                                     </a>
                                     <a href="{% url 'order_cancel' order.id %}" class="btn btn-sm btn-danger">
                                         Cancel

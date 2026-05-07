@@ -9,6 +9,8 @@ from accounts.decorators import role_required
 
 def restaurant_list(request):
     query = request.GET.get('q', '').strip()
+    cuisine = request.GET.get('cuisine', '').strip()
+    location = request.GET.get('location', '').strip()
     is_ajax = request.headers.get('x-requested-with') == 'XMLHttpRequest'
 
     base_queryset = Restaurant.objects.prefetch_related(
@@ -33,10 +35,24 @@ def restaurant_list(request):
             Q(menu_items__category__icontains=query)
         ).distinct()
 
+    # Filter by cuisine exact match (from dropdown) and by address/location substring
+    if cuisine:
+        restaurants = restaurants.filter(cuisine_type__iexact=cuisine)
+
+    if location:
+        restaurants = restaurants.filter(address__icontains=location)
+
     context = {
         'restaurants': restaurants,
         'query': query,
+        'cuisine': cuisine,
+        'location': location,
     }
+
+    # Provide cuisine options for the filter select
+    cuisine_qs = Restaurant.objects.values_list('cuisine_type', flat=True).distinct().order_by('cuisine_type')
+    cuisine_choices = [c for c in cuisine_qs if c]
+    context['cuisine_choices'] = cuisine_choices
 
     if is_ajax:
         return render(request, 'restaurants/partials/restaurant_results.html', context)

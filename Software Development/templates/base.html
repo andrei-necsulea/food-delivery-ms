@@ -160,6 +160,21 @@
                     <li class="nav-item">
                         <a class="nav-link" href="{% url 'delivery_list' %}">Deliveries</a>
                     </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            Reports
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{% url 'dashboard' %}">Dashboard Overview</a></li>
+                            <li><a class="dropdown-item" href="{% url 'driver_performance' %}">Driver Performance</a></li>
+                            <li><a class="dropdown-item" href="{% url 'restaurant_sales' %}">Restaurant Sales</a></li>
+                            <li><a class="dropdown-item" href="{% url 'revenue_analytics' %}">Revenue Analytics</a></li>
+                            <li><a class="dropdown-item" href="{% url 'order_analytics' %}">Order Analytics</a></li>
+                            <li><a class="dropdown-item" href="{% url 'delivery_analytics' %}">Delivery Analytics</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{% url 'system_logs' %}">System Logs</a></li>
+                        </ul>
+                    </li>
                     <li class="nav-item">
                         <a class="nav-link" href="/admin/">Admin Panel</a>
                     </li>
@@ -175,6 +190,14 @@
                     <li class="nav-item">
                         <a class="nav-link" href="{% url 'order_list' %}">Restaurant Orders</a>
                     </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            Reports
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{% url 'restaurant_sales' %}">Restaurant Sales</a></li>
+                        </ul>
+                    </li>
                 {% endif %}
 
                 {% if user.is_authenticated and user.role == 'client' %}
@@ -183,6 +206,9 @@
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="{% url 'menu_list' %}">Menu</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'help' %}">Help</a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="{% url 'cart_detail' %}">
@@ -195,11 +221,27 @@
                     <li class="nav-item">
                         <a class="nav-link" href="{% url 'order_list' %}">My Orders</a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'notification_list' %}">
+                            🔔 Notifications
+                            {% if notification_count > 0 %}
+                                <span class="badge bg-danger">{{ notification_count }}</span>
+                            {% endif %}
+                        </a>
+                    </li>
                 {% endif %}
 
                 {% if user.is_authenticated and user.role == 'driver' %}
                     <li class="nav-item">
                         <a class="nav-link" href="{% url 'delivery_list' %}">My Deliveries</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'notification_list' %}">
+                            🔔 Notifications
+                            {% if notification_count > 0 %}
+                                <span class="badge bg-danger">{{ notification_count }}</span>
+                            {% endif %}
+                        </a>
                     </li>
                 {% endif %}
 
@@ -222,6 +264,12 @@
                     <li class="nav-item">
                         <a class="nav-link" href="{% url 'profile' %}">Profile</a>
                     </li>
+
+                    {% if user.role == 'client' %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'help' %}">Help</a>
+                    </li>
+                    {% endif %}
 
                     <li class="nav-item">
                         <a class="nav-link" href="{% url 'logout' %}">Logout</a>

@@ -1,0 +1,133 @@
+{% extends 'base.html' %}
+
+{% block title %}Order Analytics{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1>Order Analytics</h1>
+    
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="alert alert-info">
+                <strong>Total Orders:</strong> {{ total_orders }}
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="alert alert-success">
+                <strong>Avg Order Value:</strong> ${{ avg_order_value|floatformat:2 }}
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="alert alert-warning">
+                <strong>Total Customers:</strong> {{ total_customers }}
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-3">
+        <div class="col-md-8">
+            <form method="get" class="row g-2">
+                <div class="col-auto"><input type="date" name="start" class="form-control" value="{{ start }}"></div>
+                <div class="col-auto"><input type="date" name="end" class="form-control" value="{{ end }}"></div>
+                <div class="col-auto"><button class="btn btn-primary">Filter</button></div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Peak Hours Chart -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h4>Peak Hours (24-hour breakdown)</h4>
+            <canvas id="peakHoursChart"></canvas>
+        </div>
+        <div class="col-md-4">
+            <h4>Order Status Distribution</h4>
+            <canvas id="statusChart"></canvas>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-12">
+            <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary">Back to Dashboard</a>
+        </div>
+    </div>
+    <div class="row mt-3">
+        <div class="col-12">
+            <form method="get" action="{% url 'export_report' %}" class="d-flex gap-2">
+                <input type="hidden" name="report" value="orders">
+                <input type="date" name="start" class="form-control" placeholder="Start date">
+                <input type="date" name="end" class="form-control" placeholder="End date">
+                <select name="format" class="form-select">
+                    <option value="csv">CSV</option>
+                    <option value="xlsx">XLSX</option>
+                </select>
+                <button class="btn btn-outline-primary">Export Orders</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const hours = {{ hours|safe }};
+    const orderCounts = {{ order_counts|safe }};
+    const statusLabels = {{ status_labels|safe }};
+    const statusCounts = {{ status_counts|safe }};
+
+    // Peak Hours Chart
+    const peakCtx = document.getElementById('peakHoursChart').getContext('2d');
+    new Chart(peakCtx, {
+        type: 'line',
+        data: {
+            labels: hours.map(h => h + ':00'),
+            datasets: [{
+                label: 'Orders by Hour',
+                data: orderCounts,
+                borderColor: 'rgb(75, 192, 192)',
+                backgroundColor: 'rgba(75, 192, 192, 0.1)',
+                tension: 0.1,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                title: { display: true, text: 'Peak Order Hours' }
+            }
+        }
+    });
+
+    // Status Distribution Chart
+    const statusCtx = document.getElementById('statusChart').getContext('2d');
+    new Chart(statusCtx, {
+        type: 'doughnut',
+        data: {
+            labels: statusLabels,
+            datasets: [{
+                data: statusCounts,
+                backgroundColor: [
+                    'rgba(75, 192, 75, 0.5)',
+                    'rgba(192, 75, 192, 0.5)',
+                    'rgba(75, 192, 192, 0.5)',
+                    'rgba(192, 75, 75, 0.5)',
+                ],
+                borderColor: [
+                    'rgba(75, 192, 75, 1)',
+                    'rgba(192, 75, 192, 1)',
+                    'rgba(75, 192, 192, 1)',
+                    'rgba(192, 75, 75, 1)',
+                ],
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                title: { display: true, text: 'Order Status Distribution' }
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

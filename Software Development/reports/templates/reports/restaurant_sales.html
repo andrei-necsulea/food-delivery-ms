@@ -1,0 +1,131 @@
+{% extends 'base.html' %}
+
+{% block title %}Restaurant Sales Report{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1>Restaurant Sales Report</h1>
+    
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <canvas id="ordersChart"></canvas>
+        </div>
+        <div class="col-md-6">
+            <canvas id="revenueChart"></canvas>
+        </div>
+    </div>
+    <div class="row mb-3">
+        <div class="col-md-8">
+            <form method="get" class="row g-2">
+                <div class="col-auto"><input type="date" name="start" class="form-control" value="{{ start }}"></div>
+                <div class="col-auto"><input type="date" name="end" class="form-control" value="{{ end }}"></div>
+                <div class="col-auto"><button class="btn btn-primary">Filter</button></div>
+            </form>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            <table class="table table-striped">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Restaurant</th>
+                        <th>Total Orders</th>
+                        <th>Total Revenue</th>
+                        <th>Avg Order Value</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for restaurant in restaurant_stats %}
+                    <tr>
+                        <td><strong>{{ restaurant.restaurant.name }}</strong></td>
+                        <td><span class="badge bg-info">{{ restaurant.total_orders }}</span></td>
+                        <td><span class="badge bg-success">${{ restaurant.total_revenue|floatformat:2 }}</span></td>
+                        <td>${{ restaurant.avg_order_value|floatformat:2 }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="4" class="text-center">No restaurants found</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-md-6 d-flex gap-2 flex-wrap">
+            <form method="get" action="{% url 'export_report' %}" class="d-flex gap-2">
+                <input type="hidden" name="report" value="restaurant_sales">
+                <input type="hidden" name="format" value="csv">
+                <input type="hidden" name="start" value="{{ start }}">
+                <input type="hidden" name="end" value="{{ end }}">
+                <button class="btn btn-outline-primary">Export CSV</button>
+            </form>
+            <form method="get" action="{% url 'export_report' %}" class="d-flex gap-2">
+                <input type="hidden" name="report" value="restaurant_sales">
+                <input type="hidden" name="format" value="xlsx">
+                <input type="hidden" name="start" value="{{ start }}">
+                <input type="hidden" name="end" value="{{ end }}">
+                <button class="btn btn-outline-secondary">Export XLSX</button>
+            </form>
+        </div>
+        <div class="col-md-6 text-end">
+            <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary">Back to Dashboard</a>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const restaurants = {{ chart_restaurants|safe }};
+    const orders = {{ chart_orders|safe }};
+    const revenue = {{ chart_revenue|safe }};
+
+    // Orders Chart
+    const ordersCtx = document.getElementById('ordersChart').getContext('2d');
+    new Chart(ordersCtx, {
+        type: 'bar',
+        data: {
+            labels: restaurants,
+            datasets: [{
+                label: 'Total Orders',
+                data: orders,
+                backgroundColor: 'rgba(75, 192, 192, 0.5)',
+                borderColor: 'rgba(75, 192, 192, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                title: { display: true, text: 'Orders by Restaurant' }
+            }
+        }
+    });
+
+    // Revenue Chart
+    const revenueCtx = document.getElementById('revenueChart').getContext('2d');
+    new Chart(revenueCtx, {
+        type: 'bar',
+        data: {
+            labels: restaurants,
+            datasets: [{
+                label: 'Total Revenue ($)',
+                data: revenue,
+                backgroundColor: 'rgba(75, 192, 75, 0.5)',
+                borderColor: 'rgba(75, 192, 75, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                title: { display: true, text: 'Revenue by Restaurant' }
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

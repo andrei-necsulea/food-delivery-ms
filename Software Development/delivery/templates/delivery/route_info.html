@@ -1,0 +1,404 @@
+{% extends 'base.html' %}
+
+{% block title %}Order Tracking - #{{ order.id }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-10">
+        <div class="d-flex justify-content-between align-items-center page-header">
+            <div>
+                <h1 class="fw-bold mb-1">Order Tracking</h1>
+                <p class="text-muted mb-0">Track the delivery of order #{{ order.id }}.</p>
+            </div>
+            <a href="{% url 'order_list' %}" class="btn btn-outline-secondary">Back to Orders</a>
+        </div>
+
+        <div class="row g-4">
+            <div class="col-lg-6">
+                <div class="card content-card">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">Order Details</h5>
+                    </div>
+                    <div class="card-body">
+                        <p><strong>Order ID:</strong> #{{ order.id }}</p>
+                        <p><strong>Status:</strong> {{ order.status|title|cut:"_" }}</p>
+                        <p><strong>Restaurant:</strong> {{ order.restaurant.name }}</p>
+                        <p><strong>Delivery Address:</strong> {{ order.delivery_address }}</p>
+                        <p><strong>Total:</strong> {{ order.total_price }} lei</p>
+
+                        {% if delivery %}
+                        <p><strong>Delivery Record:</strong> #{{ delivery.id }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="card content-card mt-4">
+                    <div class="card-header bg-secondary text-white">
+                        <h5 class="mb-0">Route Progress</h5>
+                    </div>
+                    <div class="card-body">
+                        {% if delivery and delivery.driver %}
+                            <div class="mb-3">
+                                <div class="progress" style="height: 20px;">
+                                    {% if delivery.status == 'assigned' %}
+                                        <div class="progress-bar bg-secondary" style="width: 25%"></div>
+                                    {% elif delivery.status == 'picked_up' %}
+                                        <div class="progress-bar bg-info" style="width: 50%"></div>
+                                    {% elif delivery.status == 'on_the_way' %}
+                                        <div class="progress-bar bg-primary" style="width: 75%"></div>
+                                    {% elif delivery.status == 'delivered' %}
+                                        <div class="progress-bar bg-success" style="width: 100%"></div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <ul class="list-group list-group-flush">
+                                <li class="list-group-item">Assigned</li>
+                                <li class="list-group-item">Picked Up</li>
+                                <li class="list-group-item">On The Way</li>
+                                <li class="list-group-item">Delivered</li>
+                            </ul>
+
+                        {% elif delivery %}
+                            <p class="text-muted">A delivery record exists, but no courier has been assigned yet.</p>
+                        {% else %}
+                            <p class="text-muted">This order has not been assigned to any courier yet.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-6">
+                <div class="card content-card">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0">Courier Information</h5>
+                    </div>
+                    <div class="card-body">
+                        {% if delivery and delivery.driver %}
+                            <p><strong>Name:</strong> {{ delivery.driver.get_full_name|default:delivery.driver.username }}</p>
+                            <p><strong>Phone:</strong> {{ delivery.driver.phone_number|default:'Not provided' }}</p>
+                            <p><strong>Vehicle:</strong> {{ delivery.driver.vehicle_type|default:'Not specified' }}</p>
+                            <p><strong>Plate:</strong> {{ delivery.driver.vehicle_plate|default:'Not specified' }}</p>
+
+                            <hr>
+                            <p class="mb-2"><strong>Courier Location</strong></p>
+                            {% if delivery.current_latitude and delivery.current_longitude %}
+                                {% if delivery.location_label %}
+                                    <p>{{ delivery.location_label }}</p>
+                                {% else %}
+                                    <p>{{ delivery.current_latitude }}, {{ delivery.current_longitude }}</p>
+                                {% endif %}
+                            {% else %}
+                                <p class="text-muted">Courier location is not available yet.</p>
+                            {% endif %}
+
+                            <div id="routeMap" style="height: 360px; border-radius: 16px; overflow: hidden; margin-top: 1rem"
+                                 data-initial-lat="{% if delivery and delivery.current_latitude %}{{ delivery.current_latitude }}{% endif %}"
+                                 data-initial-lng="{% if delivery and delivery.current_longitude %}{{ delivery.current_longitude }}{% endif %}">
+                            </div>
+                            <p class="text-muted mt-3">🚗 Auto-tracking live location. Updates every 10 seconds.</p>
+
+                            {% if user.role == 'driver' and delivery.driver == user %}
+                                <hr>
+                                <div id="trackingStatus" class="alert alert-info" role="status">
+                                    <strong>📍 Tracking Status:</strong> <span id="statusText">Initializing GPS...</span>
+                                </div>
+                                <div id="accuracyInfo" class="alert alert-secondary d-none" role="status">
+                                    Accuracy: <span id="accuracyValue">--</span> meters
+                                </div>
+                                
+                                <!-- Status Update Form for Driver -->
+                                <hr>
+                                <form id="statusUpdateForm" class="mt-3">
+                                    {% csrf_token %}
+                                    <div class="mb-3">
+                                        <label class="form-label"><strong>Update Delivery Status</strong></label>
+                                        <select name="status" id="statusSelect" class="form-select">
+                                            <option value="">-- Select Status --</option>
+                                        </select>
+                                    </div>
+                                    <button type="submit" class="btn btn-success">
+                                        Update Status
+                                    </button>
+                                </form>
+                                <div id="statusMessage" class="alert d-none mt-3" role="status"></div>
+                            {% endif %}
+                        {% else %}
+                            <p class="text-muted">No courier assigned to this order yet.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+    #routeMap {
+        min-height: 320px;
+        width: 100%;
+        border-radius: 16px;
+        border: 1px solid rgba(0,0,0,0.08);
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        var routeDataUrl = "{% url 'route_data' order.id %}";
+        var updateLocationUrl = "{% url 'update_courier_location' delivery.id %}";
+        var isDriver = "{{ user.role }}" === 'driver' && "{{ delivery.driver.id }}" === "{{ user.id }}";
+        
+        var map = L.map('routeMap').setView([44.3140, 23.8030], 13);
+        var courierMarker = null;
+        var restaurantMarker = null;
+        var customerMarker = null;
+        var trackingIntervalId = null;
+        var updateIntervalId = null;
+        
+        var statusElement = document.getElementById('trackingStatus');
+        var statusText = document.getElementById('statusText');
+        var accuracyInfo = document.getElementById('accuracyInfo');
+        var accuracyValue = document.getElementById('accuracyValue');
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+            maxZoom: 19,
+        }).addTo(map);
+
+        // Restaurant and customer locations (from route data)
+        var restaurantLat = 44.310200;
+        var restaurantLng = 23.807400;
+        var customerLat = 44.318300;
+        var customerLng = 23.799000;
+
+        // Add restaurant marker
+        restaurantMarker = L.marker([restaurantLat, restaurantLng], {
+            icon: L.icon({
+                iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
+                iconSize: [25, 41],
+                iconAnchor: [12, 41],
+                popupAnchor: [1, -34],
+            })
+        }).addTo(map).bindPopup('<strong>🏪 Restaurant</strong><br>{{ order.restaurant.name }}');
+
+        // Add customer marker (green)
+        customerMarker = L.marker([customerLat, customerLng], {
+            icon: L.icon({
+                iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
+                shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+                iconSize: [25, 41],
+                iconAnchor: [12, 41],
+                popupAnchor: [1, -34],
+                shadowSize: [41, 41]
+            })
+        }).addTo(map).bindPopup('<strong>📍 Delivery Location</strong><br>{{ order.delivery_address }}');
+
+        // Draw route line
+        L.polyline([[restaurantLat, restaurantLng], [customerLat, customerLng]], {
+            color: 'blue',
+            dashArray: '6 4',
+            weight: 2
+        }).addTo(map);
+
+        // Fit bounds
+        map.fitBounds([[restaurantLat, restaurantLng], [customerLat, customerLng]], { padding: [50, 50] });
+
+        function addCourierMarker(latitude, longitude, label) {
+            if (courierMarker) {
+                courierMarker.setLatLng([latitude, longitude]);
+                if (courierMarker.getPopup()) {
+                    courierMarker.getPopup().setContent('<strong>🚗 Courier</strong><br>' + label);
+                }
+                return;
+            }
+            courierMarker = L.marker([latitude, longitude], {
+                icon: L.icon({
+                    iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
+                    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+                    iconSize: [25, 41],
+                    iconAnchor: [12, 41],
+                    popupAnchor: [1, -34],
+                    shadowSize: [41, 41]
+                })
+            }).addTo(map).bindPopup('<strong>🚗 Courier</strong><br>' + label).openPopup();
+        }
+
+        // Auto-update from server (polling)
+        function fetchRouteData() {
+            fetch(routeDataUrl, { credentials: 'same-origin' })
+                .then(function(response) {
+                    if (!response.ok) throw new Error('Unable to fetch location data.');
+                    return response.json();
+                })
+                .then(function(data) {
+                    if (data.current_latitude && data.current_longitude) {
+                        var label = data.location_label || (data.current_latitude + ', ' + data.current_longitude);
+                        addCourierMarker(data.current_latitude, data.current_longitude, label);
+                    }
+                })
+                .catch(function(error) {
+                    console.warn('Route data refresh failed:', error);
+                });
+        }
+
+        // Initial load from server
+        fetchRouteData();
+        
+        // Poll server every 10 seconds for other users' updates
+        trackingIntervalId = setInterval(fetchRouteData, 10000);
+
+        // AUTO-TRACK GPS for driver
+        if (isDriver && navigator.geolocation) {
+            statusText.textContent = '📍 Activating GPS tracking...';
+            
+            // Start watching position
+            var watchId = navigator.geolocation.watchPosition(
+                function(position) {
+                    var lat = position.coords.latitude;
+                    var lng = position.coords.longitude;
+                    var accuracy = position.coords.accuracy;
+
+                    // Update map
+                    addCourierMarker(lat, lng, lat.toFixed(6) + ', ' + lng.toFixed(6));
+                    statusText.textContent = '✅ GPS Active (Lat: ' + lat.toFixed(4) + ', Lng: ' + lng.toFixed(4) + ')';
+                    accuracyValue.textContent = Math.round(accuracy);
+                    if (!accuracyInfo.classList.contains('d-none')) {
+                        accuracyInfo.classList.remove('d-none');
+                    }
+                    
+                    // Auto-send to server every 30 seconds
+                    if (!updateIntervalId) {
+                        updateIntervalId = setInterval(function() {
+                            navigator.geolocation.getCurrentPosition(function(pos) {
+                                autoSendLocation(pos.coords.latitude, pos.coords.longitude);
+                            });
+                        }, 30000);
+                    }
+                },
+                function(error) {
+                    statusText.textContent = '❌ GPS Error: ' + error.message;
+                    statusElement.classList.remove('alert-info');
+                    statusElement.classList.add('alert-danger');
+                },
+                {
+                    enableHighAccuracy: true,
+                    timeout: 10000,
+                    maximumAge: 0
+                }
+            );
+        } else if (!isDriver) {
+            statusElement.classList.add('d-none');
+        }
+
+        // Auto-send location to server
+        function autoSendLocation(latitude, longitude) {
+            var csrfToken = document.querySelector('input[name="csrfmiddlewaretoken"]') ? document.querySelector('input[name="csrfmiddlewaretoken"]').value : '{{ csrf_token }}';
+            var formData = new FormData();
+            formData.append('latitude', latitude);
+            formData.append('longitude', longitude);
+            formData.append('location_label', '');
+            formData.append('location_code', '');
+            formData.append('csrfmiddlewaretoken', csrfToken);
+
+            fetch(updateLocationUrl, {
+                method: 'POST',
+                body: formData,
+                credentials: 'same-origin'
+            })
+            .then(function(response) {
+                if (!response.ok) throw new Error('Failed to update location.');
+                return response.json();
+            })
+            .then(function(data) {
+                console.log('Location auto-saved:', data.message);
+            })
+            .catch(function(error) {
+                console.warn('Auto-send location failed:', error);
+            });
+        }
+
+        // Status update form for driver
+        var statusForm = document.getElementById('statusUpdateForm');
+        var statusSelect = document.getElementById('statusSelect');
+        var statusMessage = document.getElementById('statusMessage');
+        
+        if (statusForm) {
+            // Populate allowed statuses
+            var currentStatus = "{{ delivery.status }}";
+            var statusOptions = {
+                'assigned': 'Assigned',
+                'picked_up': 'Picked Up',
+                'on_the_way': 'On The Way',
+                'delivered': 'Delivered'
+            };
+            
+            // Define transitions
+            var transitions = {
+                'assigned': ['picked_up'],
+                'picked_up': ['on_the_way'],
+                'on_the_way': ['delivered'],
+                'delivered': []
+            };
+            
+            var allowedStatuses = transitions[currentStatus] || [];
+            
+            // Populate dropdown with allowed statuses
+            allowedStatuses.forEach(function(status) {
+                var option = document.createElement('option');
+                option.value = status;
+                option.textContent = statusOptions[status];
+                statusSelect.appendChild(option);
+            });
+            
+            // Handle form submit
+            statusForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                var newStatus = statusSelect.value;
+                
+                if (!newStatus) {
+                    statusMessage.textContent = 'Please select a status.';
+                    statusMessage.classList.remove('d-none', 'alert-success');
+                    statusMessage.classList.add('alert-danger');
+                    return;
+                }
+                
+                var csrfToken = document.querySelector('input[name="csrfmiddlewaretoken"]').value;
+                var formData = new FormData();
+                formData.append('status', newStatus);
+                formData.append('csrfmiddlewaretoken', csrfToken);
+                
+                var updateStatusUrl = '/delivery/driver-update-status/{{ delivery.id }}/';
+                
+                fetch(updateStatusUrl, {
+                    method: 'POST',
+                    body: formData,
+                    credentials: 'same-origin'
+                })
+                .then(function(response) {
+                    if (!response.ok) throw new Error('Failed to update status.');
+                    return response.json();
+                })
+                .then(function(data) {
+                    statusMessage.textContent = '✅ ' + data.message;
+                    statusMessage.classList.remove('d-none', 'alert-danger');
+                    statusMessage.classList.add('alert-success');
+                    // Reload page after 1.5 seconds to reflect new status
+                    setTimeout(function() {
+                        window.location.reload();
+                    }, 1500);
+                })
+                .catch(function(error) {
+                    statusMessage.textContent = '❌ Error: ' + error.message;
+                    statusMessage.classList.remove('d-none', 'alert-success');
+                    statusMessage.classList.add('alert-danger');
+                });
+            });
+        }
+    });
+</script>
+{% endblock %}
