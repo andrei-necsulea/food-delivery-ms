@@ -25,6 +25,8 @@ python manage.py migrate (pentru migratii)
 
 python manage.py makemigrations
 
+pytest -v -ra tests
+
 Pentru golire continut terminal : clear
 
 
